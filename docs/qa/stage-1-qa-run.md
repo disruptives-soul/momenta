@@ -24,6 +24,8 @@ accessibility QA requires manual browser review.
 | Route HTTP smoke | Passed |
 | Local `noindex, nofollow` smoke | Passed |
 | Forbidden public copy scan | Passed |
+| GitHub `origin/main` commit check | Passed: `85c41b6d9217249f7e8e132591086b6fda7310a0` |
+| Vercel alias copy smoke after `85c41b6` | Passed technically; pending dashboard confirmation |
 
 ## Vercel Preview
 
@@ -34,6 +36,10 @@ Vercel route verification passed for `https://momenta-gamma.vercel.app/`.
 
 This deployment is a validation preview only, even though it is served through
 the Vercel production project URL.
+
+Business observed stale copy after commit `85c41b6`. A later technical HTTP
+smoke showed the alias serving cleaned copy. `DEPLOY-001` remains open until the
+Vercel dashboard confirms the alias points to the deployment for `85c41b6`.
 
 ## Route HTTP Smoke
 
