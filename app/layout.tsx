@@ -11,6 +11,14 @@ export const metadata: Metadata = {
   },
   description:
     "Printable design collections that can be personalized and downloaded.",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 type RootLayoutProps = {

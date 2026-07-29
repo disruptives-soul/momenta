@@ -22,6 +22,14 @@ accessibility QA requires manual browser review.
 | `pnpm.cmd build` | Passed |
 | `pnpm.cmd typecheck` | Passed |
 | Route HTTP smoke | Passed |
+| Local `noindex, nofollow` smoke | Passed |
+
+## Vercel Preview
+
+Preview deployment preparation is documented in
+`docs/qa/stage-1-vercel-preview.md`.
+
+Vercel route verification is pending until the preview URL is available.
 
 ## Route HTTP Smoke
 
