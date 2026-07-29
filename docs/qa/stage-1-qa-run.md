@@ -29,7 +29,10 @@ accessibility QA requires manual browser review.
 Preview deployment preparation is documented in
 `docs/qa/stage-1-vercel-preview.md`.
 
-Vercel route verification is pending until the preview URL is available.
+Vercel route verification passed for `https://momenta-gamma.vercel.app/`.
+
+This deployment is a validation preview only, even though it is served through
+the Vercel production project URL.
 
 ## Route HTTP Smoke
 

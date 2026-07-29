@@ -19,3 +19,4 @@ Stage 1 must not move to user testing while `BUG-001` remains open.
 | ID | Description | Route | Device / viewport | Steps | Expected | Actual | Severity | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | BUG-001 | Final visual assets are not available; prototype uses placeholders. | Multiple | All | Review discovery, preview and Premium pages. | Provisional but credible assets available for external test. | Placeholders are visible and clearly marked. | High | Open | See asset inventory. |
+| LAUNCH-001 | Remove global noindex before public launch. | All | All | Prepare production launch after validation. | Public launch can be indexed when business approves. | Current validation deployment intentionally uses `noindex, nofollow`. | Low | Open | Vercel preview verification. |

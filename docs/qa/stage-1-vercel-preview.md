@@ -1,11 +1,23 @@
-# Stage 1 Vercel preview
+# Stage 1 Vercel Preview
 
 ## Status
 
-Prepared for preview deployment. URL pending after Vercel deployment.
+Deployment verified for internal validation.
 
 This preview is for internal QA and controlled user validation only. It is not a
 public launch of Momenta.
+
+URL:
+
+```txt
+https://momenta-gamma.vercel.app/
+```
+
+Vercel environment:
+
+```txt
+Production deployment used as validation preview
+```
 
 ## Roadmap Boundary
 
@@ -37,44 +49,65 @@ Applied controls:
 - HTTP header: `X-Robots-Tag: noindex, nofollow`.
 - `robots.txt`: disallow all crawlers.
 
-Local production smoke result:
+Verification result:
 
 | Check | Result |
 | --- | --- |
-| `/` includes `X-Robots-Tag` | Passed |
-| `/catalog` includes `X-Robots-Tag` | Passed |
-| `/robots.txt` returns `Disallow: /` | Passed |
+| `X-Robots-Tag` | Passed: `noindex, nofollow`. |
+| Page metadata | Passed: `meta name="robots" content="noindex, nofollow"`. |
+| `/robots.txt` | Passed: `User-Agent: *` and `Disallow: /`. |
 
-## Routes To Verify On Vercel
+## Routes Verified On Vercel
 
 | Route | Result | Notes |
 | --- | --- | --- |
-| `/` | Pending |  |
-| `/catalog` | Pending |  |
-| `/categories/childrens-birthdays` | Pending |  |
-| `/collections/space-birthday` | Pending |  |
-| `/collections/space-birthday/personalize` | Pending |  |
-| `/projects/demo-space-birthday/review` | Pending |  |
-| `/projects/demo-space-birthday/preview` | Pending |  |
-| `/projects/demo-space-birthday/download` | Pending |  |
-| `/collections/space-birthday/stickers-pack` | Pending |  |
-| `/checkout/mock` | Pending |  |
-| `/checkout/mock/success` | Pending |  |
+| `/` | Passed | 200, title `Momenta`. |
+| `/catalog` | Passed | 200, title `Catálogo | Momenta`. |
+| `/categories/childrens-birthdays` | Passed | 200, title `Cumpleaños infantiles | Momenta`. |
+| `/collections/space-birthday` | Passed | 200, title `Space Birthday | Momenta`. |
+| `/collections/space-birthday/personalize` | Passed | 200, title `Personalizar invitación | Momenta`. |
+| `/projects/demo-space-birthday/review` | Passed | 200, title `Revisión de datos | Momenta`. |
+| `/projects/demo-space-birthday/preview` | Passed | 200, title `Preview | Momenta`. |
+| `/projects/demo-space-birthday/download` | Passed | 200, title `Descarga simulada | Momenta`. |
+| `/collections/space-birthday/stickers-pack` | Passed | 200, title `Stickers pack | Momenta`. |
+| `/checkout/mock` | Passed | 200, title `Checkout simulado | Momenta`. |
+| `/checkout/mock/success` | Passed | 200, title `Interés confirmado | Momenta`. |
+| `/robots.txt` | Passed | 200, disallows all crawlers. |
 
 ## Debug And Error Checks
 
-| URL | Expected |
+| URL | Result |
 | --- | --- |
-| `/?debugEvents=1` | Shows the mock event viewer. |
-| `/projects/demo-space-birthday/preview?simulateError=1` | Shows simulated preview error. |
-| `/checkout/mock?simulateError=1` | Shows simulated checkout error. |
+| `/?debugEvents=1` | Passed. Shows the mock event viewer. |
+| `/projects/demo-space-birthday/preview?simulateError=1` | Loads with 200. Shows missing personalization fallback if no draft exists; simulated preview failure requires a complete local draft. |
+| `/checkout/mock?simulateError=1` | Loads with 200. Simulated checkout failure is triggered after pressing the confirmation CTA. |
+
+## Browser Smoke
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| Render smoke | Passed | Headless Chrome rendered representative routes. |
+| Navigation | Passed with caveat | Home to catalog navigation was exercised. Full manual route flow remains pending. |
+| `sessionStorage` | Passed | `home_viewed` was stored in `momenta:stage1:validation-events`. |
+| Mock events | Passed | `home_viewed` appeared in session storage; mock event console info was observed. |
+| Console errors | Passed | No blocking browser errors detected in Chrome headless smoke. |
+| Resources/fonts | Passed | No failed resource loads detected in Chrome headless smoke. |
+| Mobile real | Pending | Must be checked on physical devices by QA/business. |
 
 ## Differences From Local
 
-Pending after deployed preview review.
+- Vercel is serving the `main` deployment through the production project URL,
+  but it is being treated only as a validation preview.
+- No provider-backed environment variables are configured, matching Stage 1.
+- Direct access to preview error simulation behaves like local: without a
+  complete draft in `sessionStorage`, the missing personalization fallback is
+  shown first.
+- Checkout error simulation loads normally and requires clicking the
+  confirmation CTA to enter the simulated failed state.
 
-## Open Bugs
+## Open Bugs And Launch Tasks
 
 - `BUG-001 — Assets finales no disponibles — High`
+- `LAUNCH-001 — Remove global noindex before public launch`
 
 Do not move Stage 1 to `Ready for user testing` while `BUG-001` remains open.
