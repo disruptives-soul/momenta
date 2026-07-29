@@ -10,7 +10,7 @@ import { Breadcrumbs } from "@/features/prototype/components/breadcrumbs";
 
 export const metadata = {
   title: "Cumpleaños infantiles",
-  description: "Categoría piloto de Momenta para Etapa 1.",
+  description: "Colecciones imprimibles para cumpleaños infantiles.",
 };
 
 export default async function ChildrensBirthdaysCategoryPage() {
@@ -24,7 +24,7 @@ export default async function ChildrensBirthdaysCategoryPage() {
         </Button>
       }
       description={activePilotCategory.description}
-      eyebrow="Categoría piloto"
+      eyebrow="Categoría"
       title={activePilotCategory.name}
     >
       <DiscoveryEvent

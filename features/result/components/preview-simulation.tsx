@@ -88,8 +88,8 @@ export function PreviewSimulation({
             <Link href="/collections/space-birthday">Volver a Space Birthday</Link>
           </Button>
         }
-        description="Esta pantalla usa un proyecto mock controlado para la Etapa 1."
-        title="Proyecto mock inválido"
+        description="No encontramos una invitación disponible para mostrar."
+        title="Invitación no disponible"
       />
     );
   }
@@ -140,13 +140,13 @@ export function PreviewSimulation({
     return (
       <Card className="mx-auto grid max-w-2xl gap-6 text-center" aria-live="polite">
         <div>
-          <p className="text-sm font-medium text-primary">Generación simulada</p>
+          <p className="text-sm font-medium text-primary">Vista previa</p>
           <h1 className="mt-3 text-3xl font-semibold">
             {generationMessages[messageIndex]}
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Esto es una simulación breve del prototipo. No se genera ningún
-            archivo real.
+            Esta es una vista previa de la experiencia. Todavía no se genera
+            ningún archivo final.
           </p>
         </div>
         <div aria-label="Progreso de generación" className="grid gap-2">
@@ -169,7 +169,7 @@ export function PreviewSimulation({
           ))}
         </div>
         <Button disabled type="button">
-          Preparando preview
+          Preparando vista previa
         </Button>
       </Card>
     );

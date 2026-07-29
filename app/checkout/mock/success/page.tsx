@@ -3,7 +3,7 @@ import { MockCheckoutSuccess } from "@/features/premium/components/mock-checkout
 
 export const metadata = {
   title: "Interés confirmado",
-  description: "Confirmación de intención Premium simulada.",
+  description: "Confirmación de interés por el producto Premium.",
 };
 
 export default function MockCheckoutSuccessPage() {

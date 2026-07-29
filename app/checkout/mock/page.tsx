@@ -8,8 +8,8 @@ type MockCheckoutPageProps = {
 };
 
 export const metadata = {
-  title: "Checkout simulado",
-  description: "Checkout simulado para validar intención Premium.",
+  title: "Confirmar interés",
+  description: "Confirmación de interés por el Stickers pack Premium.",
 };
 
 export default async function MockCheckoutPage({

@@ -1,4 +1,5 @@
 import { activePilotCategory } from "@/features/catalog/data/mock-categories";
+import { spaceBirthdayAssets } from "@/features/collections/data/space-birthday-assets";
 import {
   spaceInvitationProduct,
   spaceStickersPackProduct,
@@ -11,19 +12,19 @@ export const mockCollections: PublicCollection[] = [
     slug: "space-birthday",
     name: "Space Birthday",
     description:
-      "Una colección piloto para validar invitaciones infantiles personalizables sin editor libre.",
+      "Una colección espacial para crear invitaciones y piezas imprimibles para cumpleaños infantiles.",
     categorySlug: activePilotCategory.slug,
     categoryName: activePilotCategory.name,
     status: "published",
-    tags: ["infantil", "espacio", "piloto"],
+    tags: ["infantil", "espacio", "cumpleaños"],
     products: [spaceInvitationProduct, spaceStickersPackProduct],
     prototype: {
       assets: {
-        cover: "placeholder:space-birthday-cover",
-        thumbnail: "placeholder:space-birthday-thumbnail",
-        invitationPreview: "placeholder:space-invitation-preview",
-        stickersPreview: "placeholder:space-stickers-preview",
-        personalizedExample: "placeholder:space-personalized-example",
+        cover: spaceBirthdayAssets.cover.id,
+        thumbnail: spaceBirthdayAssets.thumbnail.id,
+        invitationPreview: spaceBirthdayAssets.invitationPreview.id,
+        stickersPreview: spaceBirthdayAssets.stickersPreview.id,
+        personalizedExample: spaceBirthdayAssets.personalizedExample.id,
       },
       celebrationType: "Cumpleaños infantiles",
       customizableFields: [

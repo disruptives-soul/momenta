@@ -32,10 +32,9 @@ export function RouteShell({
         ) : null}
 
         <Card className="grid gap-4">
-          <p className="text-sm font-medium text-primary">Shell de Bloque 1</p>
+          <p className="text-sm font-medium text-primary">Contenido en preparación</p>
           <p className="text-sm leading-6 text-muted-foreground">
-            Esta ruta queda preparada con datos mock y estados base. El contenido
-            completo se implementará en bloques posteriores.
+            Estamos preparando esta sección para que puedas recorrerla pronto.
           </p>
           <div className="grid gap-3 md:grid-cols-3">
             <LoadingState title="Loading" description={simulatedStates.loading} />

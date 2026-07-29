@@ -5,6 +5,9 @@
 Stage 1 implementation is complete, but assets are not ready for external user
 testing. Current visual assets are placeholders generated in HTML/CSS.
 
+Public labels have been cleaned so participants do not see placeholder or
+implementation wording. The underlying assets are still not final.
+
 ## Classification
 
 - final: approved asset ready for user testing.
@@ -21,6 +24,14 @@ testing. Current visual assets are placeholders generated in HTML/CSS.
 | A4 sticker sheet representation | HTML/CSS placeholder | provisional-usable | Shows 12 circles and 5 cm concept. |
 | Example with name and age | HTML/CSS placeholder | provisional-usable | Uses Mateo / 7 as sample. |
 | Mock download file | Text confirmation only | placeholder-blocking | No actual file is downloaded. |
+
+## Central References
+
+Space Birthday asset references are centralized in:
+
+```txt
+features/collections/data/space-birthday-assets.ts
+```
 
 ## Decision
 

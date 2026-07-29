@@ -60,8 +60,8 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
             </Link>
           </Button>
         }
-        description="Esta ruta usa un proyecto mock controlado para la Etapa 1."
-        title="Proyecto mock inválido"
+        description="No encontramos una invitación disponible para revisar."
+        title="Invitación no disponible"
       />
     );
   }
@@ -103,8 +103,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
         </p>
         <h1 className="text-3xl font-semibold md:text-5xl">Revisar datos</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Todavía no se generó el diseño. Revisá que la información esté bien
-          antes de ir al shell de preview.
+          Revisá que la información esté bien antes de preparar la vista previa.
         </p>
       </Card>
 

@@ -25,10 +25,10 @@ Reusable checklist for Block 6 and later corrections.
 | `/collections/space-birthday` | Shows Free and Premium. |  |  |
 | `/collections/space-birthday/personalize` | Guided form starts. |  |  |
 | `/projects/demo-space-birthday/review` | Review is recoverable. |  |  |
-| `/projects/demo-space-birthday/preview` | Simulated preview works. |  |  |
-| `/projects/demo-space-birthday/download` | Simulated download works. |  |  |
+| `/projects/demo-space-birthday/preview` | Preview works and uses product language. |  |  |
+| `/projects/demo-space-birthday/download` | Test download messaging is clear and non-technical. |  |  |
 | `/collections/space-birthday/stickers-pack` | Premium detail works. |  |  |
-| `/checkout/mock` | Mock checkout works. |  |  |
+| `/checkout/mock` | Premium interest confirmation works. |  |  |
 | `/checkout/mock/success` | Success screen works. |  |  |
 
 ## Functional Flow
@@ -48,6 +48,20 @@ Reusable checklist for Block 6 and later corrections.
 | Download simulation completes. |  |  |
 | Premium checkout does not ask for financial data. |  |  |
 | Checkout error works with `?simulateError=1`. |  |  |
+
+## Copy Review
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| No visible references to prototype/mock/stage/block/shell. |  |  |
+| No visible placeholder/provisional/asset-pending labels in normal flow. |  |  |
+| Home reads as product experience. |  |  |
+| Catalog and category read as real catalog pages. |  |  |
+| Space Birthday communicates style, products and next steps. |  |  |
+| Stickers pack shows `ARS 1.990` without validation wording. |  |  |
+| Preview transparency is clear and non-technical. |  |  |
+| Download transparency is clear and non-technical. |  |  |
+| Checkout states no payment data and no charge. |  |  |
 
 ## Responsive
 

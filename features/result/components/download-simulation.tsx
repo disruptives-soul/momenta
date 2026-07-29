@@ -47,8 +47,8 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             <Link href="/collections/space-birthday">Volver a Space Birthday</Link>
           </Button>
         }
-        description="Esta pantalla usa un proyecto mock controlado para la Etapa 1."
-        title="Proyecto mock inválido"
+        description="No encontramos una invitación disponible para descargar."
+        title="Invitación no disponible"
       />
     );
   }
@@ -64,7 +64,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
           </Button>
         }
         description="No inventamos valores silenciosamente. Primero completá la invitación."
-        title="Faltan datos para la descarga simulada"
+        title="Faltan datos para la descarga"
       />
     );
   }
@@ -91,8 +91,8 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
               Tu invitación está lista
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              En la versión final podrás descargarla en PNG y PDF, lista para
-              compartir o imprimir. En esta etapa la descarga es una simulación.
+              Esta descarga forma parte de una prueba y no contiene todavía el
+              archivo final personalizado.
             </p>
           </div>
 
@@ -106,7 +106,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
               <p className="font-semibold">Invitación esencial</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Formatos futuros</p>
+              <p className="text-muted-foreground">Formatos</p>
               <p className="font-semibold">PNG y PDF</p>
             </div>
           </div>
@@ -119,7 +119,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             >
               <Download aria-hidden="true" />
               {downloadState === "downloading"
-                ? "Simulando descarga"
+                ? "Preparando descarga"
                 : "Descargar invitación"}
             </Button>
             <Button asChild variant="secondary">
@@ -131,7 +131,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
 
           {downloadState === "completed" ? (
             <p className="rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
-              Descarga simulada completada: momenta-space-birthday-demo.pdf
+              Descarga de prueba preparada: momenta-space-birthday-demo.pdf
             </p>
           ) : null}
         </Card>

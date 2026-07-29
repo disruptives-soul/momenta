@@ -23,16 +23,11 @@ export const mockPremiumOffer = {
     "Una hoja A4",
     "Personalización con nombre y edad",
     "Diseño coordinado con Space Birthday",
-    "Listo para imprimir en la versión funcional",
+    "Producto digital listo para imprimir",
   ],
   freeComparison: [
     "La Invitación esencial es gratuita y puede usarse sola.",
     "El Stickers pack agrega una expansión coordinada para completar la celebración.",
-  ],
-  missingAssets: [
-    "Preview final de Stickers pack",
-    "Miniatura Premium",
-    "Ejemplo final con nombre y edad",
   ],
 } as const;
 

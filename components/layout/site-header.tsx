@@ -9,6 +9,8 @@ const navigation = [
   { href: "/collections/space-birthday", label: "Space Birthday" },
 ];
 
+const showDebugShortcut = process.env.NEXT_PUBLIC_MOMENTA_DEBUG_NAV === "1";
+
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/92 backdrop-blur">
@@ -32,9 +34,11 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <Button asChild size="sm" variant="secondary">
-          <Link href="/collections/space-birthday/personalize">Probar</Link>
-        </Button>
+        {showDebugShortcut ? (
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/collections/space-birthday/personalize">Probar</Link>
+          </Button>
+        ) : null}
       </Container>
     </header>
   );

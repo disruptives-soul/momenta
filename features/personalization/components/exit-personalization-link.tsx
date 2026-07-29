@@ -19,7 +19,7 @@ export function ExitPersonalizationLink({
         if (
           hasChanges &&
           !window.confirm(
-            "Si salís ahora, los datos quedan solo en este prototipo local.",
+            "Si salís ahora, los datos ingresados no se conservarán.",
           )
         ) {
           event.preventDefault();

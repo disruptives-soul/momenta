@@ -38,7 +38,7 @@ export function ProductOptionCard({ product }: ProductOptionCardProps) {
       </div>
 
       <PlaceholderArtwork
-        label={isPremium ? "Preview Premium" : "Preview Free"}
+        label={isPremium ? "Vista Premium" : "Vista Free"}
         title={product.name}
         variant={isPremium ? "stickers" : "invitation"}
       />

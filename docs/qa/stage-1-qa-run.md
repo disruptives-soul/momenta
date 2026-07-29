@@ -23,6 +23,7 @@ accessibility QA requires manual browser review.
 | `pnpm.cmd typecheck` | Passed |
 | Route HTTP smoke | Passed |
 | Local `noindex, nofollow` smoke | Passed |
+| Forbidden public copy scan | Passed |
 
 ## Vercel Preview
 
@@ -58,6 +59,7 @@ http://127.0.0.1:3000
 
 ## Manual QA Still Required
 
+- Manual copy review after deployment.
 - Chrome full flow.
 - Edge or Chromium secondary browser.
 - Firefox desktop.

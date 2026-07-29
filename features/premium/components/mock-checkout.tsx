@@ -75,12 +75,12 @@ export function MockCheckout({ simulateError = false }: MockCheckoutProps) {
 
       <Card className="grid gap-6">
         <div>
-          <Badge tone="premium">Checkout simulado</Badge>
+          <Badge tone="premium">Confirmación Premium</Badge>
           <h1 className="mt-3 text-3xl font-semibold md:text-5xl">
             Confirmar interés
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Este paso mide intención de compra. No solicitamos datos financieros.
+            Este paso registra tu interés en el producto. No solicitamos datos de pago.
           </p>
         </div>
 
@@ -122,8 +122,8 @@ export function MockCheckout({ simulateError = false }: MockCheckoutProps) {
           aria-live="polite"
           className="rounded-md border border-primary/25 bg-primary/10 p-4 text-sm leading-6"
         >
-          No se realizará ningún cobro y no se abrirá Mercado Pago. Esta acción
-          solo confirma que comprarías el Stickers pack por {mockPremiumOffer.priceLabel}.
+          No se realizará ningún cobro. Esta acción solo confirma que comprarías
+          el Stickers pack por {mockPremiumOffer.priceLabel}.
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">

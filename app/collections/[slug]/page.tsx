@@ -129,27 +129,12 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
           </Card>
         </section>
 
-        {collection.prototype?.missingAssets.length ? (
-          <Card>
-            <h2 className="text-lg font-semibold">Assets pendientes</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Estos placeholders permiten avanzar el prototipo sin bloquear la
-              validación de experiencia.
-            </p>
-            <ul className="mt-4 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-              {collection.prototype.missingAssets.map((asset) => (
-                <li key={asset}>• {asset}</li>
-              ))}
-            </ul>
-          </Card>
-        ) : null}
-
         <section>
           <div className="mb-5">
             <h2 className="text-2xl font-semibold">Productos de la colección</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Free y Premium se diferencian por contenido, acceso y siguiente
-              paso. No hay pagos reales en esta etapa.
+              Elige la invitación gratuita o suma el pack Premium para completar
+              la celebración.
             </p>
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
@@ -172,7 +157,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
               </EventLink>
             </Button>
           }
-          description="El próximo paso abre el shell existente. El formulario completo pertenece al Bloque 3."
+          description="Completá los datos de la celebración y revisá la vista previa antes de continuar."
           title="Empezá con la Invitación esencial"
         />
       </Container>

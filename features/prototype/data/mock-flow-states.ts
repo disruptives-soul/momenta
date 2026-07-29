@@ -1,13 +1,13 @@
 export const prototypeSteps = [
   { id: "personalize", label: "Personalizar" },
   { id: "review", label: "Revisar" },
-  { id: "preview", label: "Preview" },
+  { id: "preview", label: "Vista previa" },
   { id: "download", label: "Descargar" },
 ];
 
 export const simulatedStates = {
-  loading: "Simulando carga de datos del prototipo.",
-  empty: "No hay datos mock para esta pantalla.",
-  error: "Estado de error simulado para validar mensajes.",
-  ready: "Pantalla lista con datos mock.",
+  loading: "Cargando contenido.",
+  empty: "No hay contenido para mostrar.",
+  error: "No pudimos cargar esta pantalla.",
+  ready: "Pantalla lista.",
 } as const;

@@ -8,6 +8,7 @@ import { DiscoveryEvent } from "@/features/analytics/components/discovery-event"
 import { CategoryCard } from "@/features/catalog/components/category-card";
 import { mockCategories } from "@/features/catalog/data/mock-categories";
 import { CollectionCard } from "@/features/collections/components/collection-card";
+import { spaceBirthdayAssets } from "@/features/collections/data/space-birthday-assets";
 import { listPublicCollections } from "@/features/collections/services/list-public-collections";
 import { Hero } from "@/features/prototype/components/hero";
 import { HowItWorks } from "@/features/prototype/components/how-it-works";
@@ -36,13 +37,13 @@ export default async function HomePage() {
             </Button>
           </>
         }
-        description="Elige una colección, personalízala y descarga tu kit imprimible."
-        eyebrow="Prototipo de experiencia"
+        description="Elige una colección, personalízala paso a paso y prepara piezas imprimibles para tu celebración."
+        eyebrow="Colecciones imprimibles"
         media={
           <PlaceholderArtwork
-            description="Asset provisional hasta recibir la portada final."
-            label="Placeholder de portada"
-            title="Space Birthday"
+            description={spaceBirthdayAssets.cover.description}
+            label={spaceBirthdayAssets.cover.label}
+            title={spaceBirthdayAssets.cover.title}
             variant="cover"
           />
         }
@@ -55,7 +56,7 @@ export default async function HomePage() {
             <div>
               <h2 className="text-2xl font-semibold">Colección destacada</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                La primera colección piloto para validar descubrimiento.
+                Una colección espacial para cumpleaños infantiles.
               </p>
             </div>
             <Link className="text-sm font-medium text-primary" href="/catalog">
@@ -65,9 +66,9 @@ export default async function HomePage() {
           {featuredCollection ? (
             <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
               <PlaceholderArtwork
-                description={featuredCollection.prototype?.visualStyle}
-                label="Miniatura provisional"
-                title={featuredCollection.name}
+                description={spaceBirthdayAssets.thumbnail.description}
+                label={spaceBirthdayAssets.thumbnail.label}
+                title={spaceBirthdayAssets.thumbnail.title}
                 variant="thumbnail"
               />
               <CollectionCard collection={featuredCollection} />
@@ -79,7 +80,7 @@ export default async function HomePage() {
           <div className="mb-5">
             <h2 className="text-2xl font-semibold">Categorías disponibles</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Solo Cumpleaños infantiles está activa durante esta etapa.
+              Explora colecciones por tipo de celebración.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -103,7 +104,7 @@ export default async function HomePage() {
           <div className="mb-5">
             <h2 className="text-2xl font-semibold">Free y Premium</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              El prototipo diferencia el acceso gratuito del interés Premium.
+              Empieza gratis y suma piezas coordinadas cuando quieras completar la celebración.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -125,8 +126,7 @@ export default async function HomePage() {
               </div>
               <h3 className="text-xl font-semibold">Stickers pack</h3>
               <p className="text-sm leading-6 text-muted-foreground">
-                Página A4 con 12 stickers circulares de 5 cm. Precio de
-                validación: ARS 1.990.
+                Página A4 con 12 stickers circulares de 5 cm. Precio: ARS 1.990.
               </p>
             </Card>
           </div>
@@ -141,7 +141,7 @@ export default async function HomePage() {
               </Link>
             </Button>
           }
-          description="Empezá por Space Birthday y recorré la experiencia del prototipo."
+          description="Empezá por Space Birthday y personalizá tu invitación en pocos pasos."
           title="Listo para elegir una colección"
         />
       </Container>

@@ -17,7 +17,7 @@ export const spaceInvitationProduct: PrototypeProduct = {
   collectionId: "col_space_birthday",
   name: "Invitación esencial",
   description:
-    "Invitación vertical gratuita con preview y descarga simulada durante la Etapa 1.",
+    "Invitación vertical gratuita para personalizar con los datos de la celebración.",
   access: "free",
   widthMm: 127,
   heightMm: 178,
@@ -88,8 +88,8 @@ export const spaceInvitationProduct: PrototypeProduct = {
     ctaLabel: "Personalizar gratis",
     href: "/collections/space-birthday/personalize",
     highlights: [
-      "Preview personalizado simulado",
-      "Descarga PNG/PDF simulada",
+      "Vista previa personalizada",
+      "Formato preparado para PNG y PDF",
       "Sin editor libre",
     ],
     visualFormat: "Invitación vertical 5 x 7 in",
@@ -136,7 +136,7 @@ export const spaceStickersPackProduct: PrototypeProduct = {
     highlights: [
       "12 stickers circulares",
       "5 cm de diámetro",
-      "Checkout simulado",
+      "Compra única",
     ],
     visualFormat: "Página A4 210 x 297 mm",
   },

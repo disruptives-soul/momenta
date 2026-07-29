@@ -5,7 +5,7 @@ import { PersonalizationFlow } from "@/features/personalization/components/perso
 
 export const metadata = {
   title: "Personalizar invitación",
-  description: "Shell del formulario de personalización de Etapa 1.",
+  description: "Formulario para personalizar la Invitación esencial.",
 };
 
 export default function PersonalizePage() {

@@ -11,7 +11,7 @@ const steps = [
   },
   {
     title: "Descarga e imprime",
-    description: "En el prototipo la descarga es simulada.",
+    description: "Obtén una pieza lista para revisar, compartir e imprimir.",
   },
 ];
 

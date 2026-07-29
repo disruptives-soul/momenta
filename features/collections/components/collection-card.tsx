@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EventLink } from "@/features/analytics/components/event-link";
 import { PlaceholderArtwork } from "@/features/prototype/components/placeholder-artwork";
+import { spaceBirthdayAssets } from "../data/space-birthday-assets";
 import type { PublicCollection } from "../types/public-collection";
 
 type CollectionCardProps = {
@@ -22,7 +23,8 @@ export function CollectionCard({ collection }: CollectionCardProps) {
     >
       <Card className="grid min-h-full gap-4 transition-colors group-hover:border-primary">
         <PlaceholderArtwork
-          label="Miniatura provisional"
+          description={spaceBirthdayAssets.thumbnail.description}
+          label={spaceBirthdayAssets.thumbnail.label}
           title={collection.name}
           variant="thumbnail"
         />

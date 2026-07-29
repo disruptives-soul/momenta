@@ -33,7 +33,7 @@ export function PrototypeInvitationPreview({
   return (
     <figure>
       <div
-        aria-label="Preview prototipo de la Invitación esencial personalizada"
+        aria-label="Vista previa de la Invitación esencial personalizada"
         className={cn(
           "relative mx-auto aspect-[5/7] w-full max-w-sm overflow-hidden rounded-md border border-border bg-[#fbfaf7] p-5 shadow-md",
           compact && "max-w-64 p-4",
@@ -46,7 +46,7 @@ export function PrototypeInvitationPreview({
         <div className="absolute bottom-10 left-8 size-8 rounded-full border border-accent/40" />
         <div className="relative flex h-full flex-col justify-between rounded-sm border border-dashed border-primary/30 bg-background/78 p-5 text-center">
           <div>
-            <Badge tone="neutral">Prototype preview renderer</Badge>
+            <Badge tone="neutral">Vista previa</Badge>
             <p className="mt-5 text-sm font-medium uppercase tracking-[0.14em] text-primary">
               Space Birthday
             </p>
@@ -74,7 +74,7 @@ export function PrototypeInvitationPreview({
       </div>
       {hasLongText ? (
         <figcaption className="mx-auto mt-3 max-w-sm text-sm text-warning">
-          Algunos textos están cerca del límite visual del prototipo.
+          Algunos textos están cerca del límite visual de la invitación.
         </figcaption>
       ) : null}
     </figure>

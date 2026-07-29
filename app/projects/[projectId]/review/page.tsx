@@ -9,7 +9,7 @@ type ReviewPageProps = {
 
 export const metadata = {
   title: "Revisión de datos",
-  description: "Shell de revisión de datos para Etapa 1.",
+  description: "Revisión de datos de la Invitación esencial.",
 };
 
 export default async function ReviewPage({ params }: ReviewPageProps) {

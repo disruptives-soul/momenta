@@ -20,14 +20,14 @@ export const mockCategories: MockCategory[] = [
     slug: "baby-shower",
     name: "Baby shower",
     status: "coming-soon",
-    description: "Categoría visible como contexto, no funcional en Etapa 1.",
+    description: "Nuevas colecciones para baby shower.",
   },
   {
     id: "cat_baptism_communion",
     slug: "baptism-communion",
     name: "Bautismo y comunión",
     status: "coming-soon",
-    description: "Categoría futura fuera del alcance congelado.",
+    description: "Diseños imprimibles para bautismo y comunión.",
   },
 ];
 

@@ -11,8 +11,8 @@ type PreviewPageProps = {
 };
 
 export const metadata = {
-  title: "Preview",
-  description: "Generación y preview simulado para Etapa 1.",
+  title: "Vista previa",
+  description: "Vista previa de la Invitación esencial.",
 };
 
 export default async function PreviewPage({

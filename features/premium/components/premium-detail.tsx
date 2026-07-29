@@ -48,7 +48,7 @@ export function PremiumDetail() {
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Precio de validación</p>
+            <p className="text-sm text-muted-foreground">Precio</p>
             <p className="text-3xl font-semibold">{mockPremiumOffer.priceLabel}</p>
           </div>
           <div className="grid gap-2 text-sm text-muted-foreground">
@@ -112,18 +112,6 @@ export function PremiumDetail() {
         </Card>
       </section>
 
-      <Card>
-        <h2 className="text-lg font-semibold">Assets pendientes</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Estos placeholders permiten validar el flujo Premium sin inventar una
-          dirección artística final.
-        </p>
-        <ul className="mt-4 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-          {mockPremiumOffer.missingAssets.map((asset) => (
-            <li key={asset}>• {asset}</li>
-          ))}
-        </ul>
-      </Card>
     </div>
   );
 }

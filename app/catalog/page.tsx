@@ -23,7 +23,7 @@ export default async function CatalogPage() {
           </Link>
         </Button>
       }
-      description="Explorá colecciones imprimibles listas para personalizar. En esta etapa usamos datos mock y una colección piloto."
+      description="Explorá colecciones imprimibles listas para personalizar."
       eyebrow="Catálogo"
       title="Colecciones para imprimir"
     >

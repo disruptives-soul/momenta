@@ -8,8 +8,8 @@ type DownloadPageProps = {
 };
 
 export const metadata = {
-  title: "Descarga simulada",
-  description: "Descarga simulada de la Invitación esencial.",
+  title: "Descarga",
+  description: "Descarga de prueba de la Invitación esencial.",
 };
 
 export default async function DownloadPage({ params }: DownloadPageProps) {

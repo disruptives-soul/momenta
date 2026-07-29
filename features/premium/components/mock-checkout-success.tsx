@@ -43,8 +43,8 @@ export function MockCheckoutSuccess() {
           Gracias por tu interés
         </h1>
         <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
-          No realizamos ningún cobro. Tu respuesta nos ayuda a validar el
-          Stickers pack de Space Birthday.
+          No realizamos ningún cobro. Tu respuesta nos ayuda a conocer el interés
+          por el Stickers pack de Space Birthday.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild>

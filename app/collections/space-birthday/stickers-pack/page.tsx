@@ -3,7 +3,7 @@ import { PremiumDetail } from "@/features/premium/components/premium-detail";
 
 export const metadata = {
   title: "Stickers pack",
-  description: "Detalle del producto Premium simulado.",
+  description: "Detalle del Stickers pack Premium de Space Birthday.",
 };
 
 export default function StickersPackPage() {

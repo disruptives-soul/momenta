@@ -33,10 +33,10 @@ export function CategoryCard({ category }: CategoryCardProps) {
           Ver categoría
         </EventLink>
       ) : (
-        <p className="text-sm font-medium text-muted-foreground">
-          Fuera del alcance de Etapa 1
-        </p>
-      )}
-    </Card>
-  );
+          <p className="text-sm font-medium text-muted-foreground">
+            Próximamente
+          </p>
+        )}
+      </Card>
+    );
 }
