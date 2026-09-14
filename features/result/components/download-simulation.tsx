@@ -11,8 +11,11 @@ import { trackValidationEvent } from "@/features/analytics/services/track-valida
 import { loadPersonalizationDraft } from "@/features/personalization/services/personalization-draft-storage";
 import {
   demoPersonalizationProjectId,
+  getDraftTemplateLayout,
+  getDraftTemplateScene,
   type PersonalizationDraft,
 } from "@/features/personalization/types/personalization-draft";
+import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
 import {
   hasCompletePrototypeDraft,
   isValidPrototypeProject,
@@ -31,6 +34,9 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
     useState<PrototypeDownloadState>("available");
   const isValidProject = isValidPrototypeProject(projectId);
   const isComplete = hasCompletePrototypeDraft(draft);
+  const template = getRenderingTemplate(draft.templateId);
+  const activeLayout = template ? getDraftTemplateLayout(draft, template.id) : {};
+  const activeScene = template ? getDraftTemplateScene(draft, template.id) : [];
 
   useEffect(() => {
     if (isValidProject && isComplete) {
@@ -53,35 +59,75 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
     );
   }
 
-  if (!isComplete) {
+  if (!isComplete || !template) {
     return (
       <ErrorState
         action={
           <Button asChild>
             <Link href="/collections/space-birthday/personalize">
-              Completar personalización
+              Volver al editor
             </Link>
           </Button>
         }
         description="No inventamos valores silenciosamente. Primero completá la invitación."
-        title="Faltan datos para la descarga"
+        title="Falta elegir una plantilla"
       />
     );
   }
 
-  function simulateDownload() {
+  const activeTemplate = template;
+
+  async function renderAndDownload() {
     setDownloadState("downloading");
     trackValidationEvent("download_clicked", resultEventPayload);
 
-    window.setTimeout(() => {
+    try {
+      const response = await fetch("/api/render", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          templateId: activeTemplate.id,
+          format: "pdf",
+          data: draft.values,
+          layout: activeLayout,
+          scene: activeScene,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Render failed.");
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = `${activeTemplate.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
       setDownloadState("completed");
       trackValidationEvent("download_simulated", resultEventPayload);
-    }, 650);
+    } catch {
+      setDownloadState("failed");
+      trackValidationEvent("download_failed", resultEventPayload);
+    }
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[0.72fr_1fr] lg:items-start">
-      <PrototypeInvitationPreview compact values={draft.values} />
+      <PrototypeInvitationPreview
+        compact
+        layout={activeLayout}
+        scene={activeScene}
+        templateId={activeTemplate.id}
+        values={draft.values}
+      />
 
       <div className="grid gap-5">
         <Card className="grid gap-5">
@@ -91,8 +137,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
               Tu invitación está lista
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Esta descarga forma parte de una prueba y no contiene todavía el
-              archivo final personalizado.
+              Esta descarga genera un PDF personalizado desde el template local.
             </p>
           </div>
 
@@ -107,19 +152,19 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             </div>
             <div>
               <p className="text-muted-foreground">Formatos</p>
-              <p className="font-semibold">PNG y PDF</p>
+              <p className="font-semibold">PDF real</p>
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Button
               disabled={downloadState === "downloading"}
-              onClick={simulateDownload}
+              onClick={renderAndDownload}
               type="button"
             >
               <Download aria-hidden="true" />
               {downloadState === "downloading"
-                ? "Preparando descarga"
+                ? "Renderizando invitación"
                 : "Descargar invitación"}
             </Button>
             <Button asChild variant="secondary">
@@ -131,7 +176,14 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
 
           {downloadState === "completed" ? (
             <p className="rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
-              Descarga de prueba preparada: momenta-space-birthday-demo.pdf
+              Descarga generada: momenta-space-birthday-invitation.pdf
+            </p>
+          ) : null}
+
+          {downloadState === "failed" ? (
+            <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+              No pudimos generar la invitación. Revisá los datos o intentá
+              nuevamente.
             </p>
           ) : null}
         </Card>

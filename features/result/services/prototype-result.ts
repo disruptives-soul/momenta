@@ -2,14 +2,13 @@ import {
   demoPersonalizationProjectId,
   type PersonalizationDraft,
 } from "@/features/personalization/types/personalization-draft";
-import { validateAllPersonalizationValues } from "@/features/personalization/validators/personalization-validator";
 
 export function isValidPrototypeProject(projectId: string) {
   return projectId === demoPersonalizationProjectId;
 }
 
 export function getPrototypeProjectErrors(draft: PersonalizationDraft) {
-  return validateAllPersonalizationValues(draft.values);
+  return draft.templateId ? {} : { templateId: "Seleccioná una plantilla." };
 }
 
 export function hasCompletePrototypeDraft(draft: PersonalizationDraft) {

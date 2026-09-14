@@ -1,300 +1,319 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { FieldError } from "@/components/ui/field-error";
-import { Input } from "@/components/ui/input";
-import { ProgressSteps } from "@/components/ui/progress-steps";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
-import { spaceInvitationProduct } from "@/features/products/data/mock-products";
+import { renderingTemplates } from "@/features/rendering/templates/template-registry";
 import {
-  getStepIndex,
-  personalizationSteps,
-} from "../config/personalization-steps";
+  createDefaultTextElement,
+  createTextSceneFromTemplate,
+  getTextSceneConstraints,
+} from "@/features/rendering/templates/text-scene";
 import {
   loadPersonalizationDraft,
   savePersonalizationDraft,
 } from "../services/personalization-draft-storage";
-import { getPersonalizationField } from "../services/personalization-fields";
 import {
+  createInitialPersonalizationDraft,
   demoPersonalizationProjectId,
   type PersonalizationDraft,
-  type PersonalizationFieldKey,
+  type PersonalizationTextScenes,
+  type PersonalizationValues,
 } from "../types/personalization-draft";
-import {
-  validatePersonalizationStep,
-  type PersonalizationErrors,
-} from "../validators/personalization-validator";
-import { CharacterCounter } from "./character-counter";
-import { ExitPersonalizationLink } from "./exit-personalization-link";
-import { FormNavigation } from "./form-navigation";
+import type { TextElement } from "@/features/rendering/templates/template-types";
+
+const PersonalizationEditor = dynamic(
+  () =>
+    import("./personalization-editor").then(
+      (module) => module.PersonalizationEditor,
+    ),
+  {
+    loading: () => (
+      <div className="min-h-[680px] w-full rounded-md border border-border bg-surface shadow-md" />
+    ),
+    ssr: false,
+  },
+);
+
+type PersonalizationHistory = {
+  past: Array<{
+    values: PersonalizationValues;
+    valuesByTemplate: PersonalizationDraft["valuesByTemplate"];
+    layouts: PersonalizationDraft["layouts"];
+    scenes: PersonalizationTextScenes;
+  }>;
+  future: Array<{
+    values: PersonalizationValues;
+    valuesByTemplate: PersonalizationDraft["valuesByTemplate"];
+    layouts: PersonalizationDraft["layouts"];
+    scenes: PersonalizationTextScenes;
+  }>;
+};
+
+function getTemplateDefaults(templateId: string): PersonalizationValues {
+  const template =
+    renderingTemplates.find((item) => item.id === templateId) ?? renderingTemplates[0];
+
+  return Object.fromEntries(
+    Object.entries(template.fields).map(([key, field]) => [
+      key,
+      field.defaultValue,
+    ]),
+  );
+}
 
 export function PersonalizationFlow() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const inputRefs = useRef<
-    Partial<Record<PersonalizationFieldKey, HTMLInputElement | HTMLTextAreaElement | null>>
-  >({});
-  const [draft, setDraft] = useState<PersonalizationDraft>(loadPersonalizationDraft);
-  const [errors, setErrors] = useState<PersonalizationErrors>({});
-  const [touchedFields, setTouchedFields] = useState<
-    Partial<Record<PersonalizationFieldKey, boolean>>
-  >({});
+  const [draft, setDraft] = useState<PersonalizationDraft>(
+    createInitialPersonalizationDraft,
+  );
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [history, setHistory] = useState<PersonalizationHistory>({
+    past: [],
+    future: [],
+  });
+  const activeTemplate =
+    renderingTemplates.find((template) => template.id === draft.templateId) ??
+    renderingTemplates[0];
+  const activeScene =
+    draft.scenes[activeTemplate.id] ?? createTextSceneFromTemplate(activeTemplate);
+  const activeConstraints = getTextSceneConstraints(activeTemplate);
 
   useEffect(() => {
+    let active = true;
+
+    window.queueMicrotask(() => {
+      if (!active) {
+        return;
+      }
+
+      setDraft(loadPersonalizationDraft());
+      setIsHydrated(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     savePersonalizationDraft(draft);
-  }, [draft]);
+  }, [draft, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     trackValidationEvent("personalization_started", {
       collectionSlug: draft.collectionSlug,
       productCode: draft.productCode,
     });
-  }, [draft.collectionSlug, draft.productCode]);
+  }, [draft.collectionSlug, draft.productCode, isHydrated]);
 
-  useEffect(() => {
-    trackValidationEvent("personalization_step_viewed", {
-      collectionSlug: draft.collectionSlug,
-      productCode: draft.productCode,
-      step: draft.currentStep,
-    });
-  }, [draft.collectionSlug, draft.currentStep, draft.productCode]);
-
-  const requestedStep = searchParams.get("step");
-  const requestedStepExists = personalizationSteps.some(
-    (step) => step.id === requestedStep,
-  );
-  const currentStepId = requestedStepExists ? String(requestedStep) : draft.currentStep;
-  const currentStepIndex = getStepIndex(currentStepId);
-  const currentStep = personalizationSteps[currentStepIndex];
-  const isLastStep = currentStepIndex === personalizationSteps.length - 1;
-
-  const progressSteps = useMemo(
-    () =>
-      personalizationSteps.map((step) => ({
-        id: step.id,
-        label: step.title,
-      })),
-    [],
-  );
-
-  function setFieldValue(field: PersonalizationFieldKey, value: string) {
+  function selectTemplate(templateId: string) {
     setDraft((currentDraft) => ({
       ...currentDraft,
-      values: {
-        ...currentDraft.values,
-        [field]: value,
+      templateId,
+      values:
+        currentDraft.valuesByTemplate[templateId] ??
+        getTemplateDefaults(templateId),
+      valuesByTemplate: {
+        ...currentDraft.valuesByTemplate,
+        [templateId]:
+          currentDraft.valuesByTemplate[templateId] ??
+          getTemplateDefaults(templateId),
+      },
+      layouts: {
+        ...currentDraft.layouts,
+        [templateId]: currentDraft.layouts[templateId] ?? {},
+      },
+      scenes: {
+        ...currentDraft.scenes,
+        [templateId]:
+          currentDraft.scenes[templateId] ??
+          createTextSceneFromTemplate(
+            renderingTemplates.find((item) => item.id === templateId) ??
+              renderingTemplates[0],
+          ),
       },
     }));
+  }
 
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      [field]: undefined,
+  function pushHistory() {
+    setHistory((currentHistory) => ({
+      past: [
+        ...currentHistory.past,
+        {
+          values: draft.values,
+          valuesByTemplate: draft.valuesByTemplate,
+          layouts: draft.layouts,
+          scenes: draft.scenes,
+        },
+      ].slice(-30),
+      future: [],
     }));
   }
 
-  function focusFirstError(stepErrors: PersonalizationErrors) {
-    const firstErrorField = currentStep.fields.find((field) => stepErrors[field]);
-
-    if (firstErrorField) {
-      inputRefs.current[firstErrorField]?.focus();
-    }
-  }
-
-  function submitCurrentStep(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const stepErrors = validatePersonalizationStep(currentStep, draft.values);
-
-    if (Object.keys(stepErrors).length > 0) {
-      setErrors(stepErrors);
-      focusFirstError(stepErrors);
-      trackValidationEvent("personalization_validation_failed", {
-        collectionSlug: draft.collectionSlug,
-        productCode: draft.productCode,
-        step: currentStep.id,
-        field: Object.keys(stepErrors)[0],
-      });
-      return;
-    }
-
-    currentStep.fields.forEach((field) => {
-      if (draft.values[field].trim()) {
-        trackValidationEvent("personalization_field_completed", {
-          collectionSlug: draft.collectionSlug,
-          productCode: draft.productCode,
-          step: currentStep.id,
-          field,
-        });
-      }
-    });
-
-    if (isLastStep) {
-      const nextDraft = {
-        ...draft,
-        currentStep: "review",
-      };
-      savePersonalizationDraft(nextDraft);
-      trackValidationEvent("personalization_completed", {
-        collectionSlug: draft.collectionSlug,
-        productCode: draft.productCode,
-      });
-      router.push(`/projects/${demoPersonalizationProjectId}/review`);
-      return;
-    }
-
-    const nextStep = personalizationSteps[currentStepIndex + 1];
+  function setTextScene(nextScene: TextElement[]) {
+    pushHistory();
     setDraft((currentDraft) => ({
       ...currentDraft,
-      currentStep: nextStep.id,
+      scenes: {
+        ...currentDraft.scenes,
+        [currentDraft.templateId]: nextScene,
+      },
     }));
-    setErrors({});
   }
 
-  function goBack() {
-    if (currentStepIndex === 0) {
+  function updateTextElement(
+    elementId: string,
+    patch: Partial<TextElement>,
+  ) {
+    setTextScene(
+      activeScene.map((element) =>
+        element.id === elementId ? { ...element, ...patch } : element,
+      ),
+    );
+  }
+
+  function addTextElement() {
+    setTextScene([
+      ...activeScene,
+      createDefaultTextElement(activeTemplate, activeScene.length + 1),
+    ]);
+  }
+
+  function duplicateTextElement(elementId: string) {
+    const element = activeScene.find((item) => item.id === elementId);
+
+    if (!element) {
       return;
     }
 
-    const previousStep = personalizationSteps[currentStepIndex - 1];
-    trackValidationEvent("personalization_back_clicked", {
+    setTextScene([
+      ...activeScene,
+      {
+        ...element,
+        id: `${element.id}-copy-${Date.now()}`,
+        label: `${element.label} copia`,
+        x: element.x + 48,
+        y: element.y + 48,
+      },
+    ]);
+  }
+
+  function deleteTextElement(elementId: string) {
+    setTextScene(activeScene.filter((element) => element.id !== elementId));
+  }
+
+  function reorderTextElement(elementId: string, direction: -1 | 1) {
+    const index = activeScene.findIndex((element) => element.id === elementId);
+    const nextIndex = index + direction;
+
+    if (index < 0 || nextIndex < 0 || nextIndex >= activeScene.length) {
+      return;
+    }
+
+    const nextScene = [...activeScene];
+    const [element] = nextScene.splice(index, 1);
+    nextScene.splice(nextIndex, 0, element);
+    setTextScene(nextScene);
+  }
+
+  function undo() {
+    const previousSnapshot = history.past.at(-1);
+
+    if (!previousSnapshot) {
+      return;
+    }
+
+    setHistory((currentHistory) => ({
+      past: currentHistory.past.slice(0, -1),
+      future: [
+        {
+          values: draft.values,
+          valuesByTemplate: draft.valuesByTemplate,
+          layouts: draft.layouts,
+          scenes: draft.scenes,
+        },
+        ...currentHistory.future,
+      ].slice(0, 30),
+    }));
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      values: previousSnapshot.values,
+      valuesByTemplate: previousSnapshot.valuesByTemplate,
+      layouts: previousSnapshot.layouts,
+      scenes: previousSnapshot.scenes,
+    }));
+  }
+
+  function redo() {
+    const nextSnapshot = history.future[0];
+
+    if (!nextSnapshot) {
+      return;
+    }
+
+    setHistory((currentHistory) => ({
+      past: [
+        ...currentHistory.past,
+        {
+          values: draft.values,
+          valuesByTemplate: draft.valuesByTemplate,
+          layouts: draft.layouts,
+          scenes: draft.scenes,
+        },
+      ].slice(-30),
+      future: currentHistory.future.slice(1),
+    }));
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      values: nextSnapshot.values,
+      valuesByTemplate: nextSnapshot.valuesByTemplate,
+      layouts: nextSnapshot.layouts,
+      scenes: nextSnapshot.scenes,
+    }));
+  }
+
+  function requestPreview() {
+    trackValidationEvent("personalization_completed", {
       collectionSlug: draft.collectionSlug,
       productCode: draft.productCode,
-      step: currentStep.id,
     });
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      currentStep: previousStep.id,
-    }));
-    setErrors({});
+    trackValidationEvent("preview_requested", {
+      collectionSlug: draft.collectionSlug,
+      productCode: draft.productCode,
+    });
+    router.push(`/projects/${demoPersonalizationProjectId}/preview`);
   }
 
-  const hasChanges = Object.values(draft.values).some((value) => value.trim());
-
   return (
-    <div className="grid gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-primary">
-            Space Birthday · {spaceInvitationProduct.name}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold md:text-5xl">
-            Personalización guiada
-          </h1>
-        </div>
-        <ExitPersonalizationLink
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-          hasChanges={hasChanges}
-          href="/collections/space-birthday"
-        >
-          Salir
-        </ExitPersonalizationLink>
-      </div>
-
-      <ProgressSteps steps={progressSteps} currentStepId={currentStep.id} />
-
-      <Card className="mx-auto grid w-full max-w-2xl gap-6">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Paso {currentStepIndex + 1} de {personalizationSteps.length}
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold">{currentStep.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {currentStep.description}
-          </p>
-        </div>
-
-        <form className="grid gap-5" onSubmit={submitCurrentStep} noValidate>
-          {currentStep.fields.map((fieldKey) => {
-            const field = getPersonalizationField(fieldKey);
-            const error = errors[fieldKey];
-            const fieldId = `personalization-${fieldKey}`;
-            const errorId = `${fieldId}-error`;
-            const value = draft.values[fieldKey];
-            const maxLength = field?.rule.maxLength;
-
-            if (!field) {
-              return null;
-            }
-
-            const sharedProps = {
-              "aria-describedby": error ? errorId : undefined,
-              "aria-invalid": Boolean(error),
-              id: fieldId,
-              name: fieldKey,
-              onBlur: () =>
-                setTouchedFields((currentTouchedFields) => ({
-                  ...currentTouchedFields,
-                  [fieldKey]: true,
-                })),
-              required: field.rule.required,
-              value,
-            };
-
-            return (
-              <div className="grid gap-2" key={field.key}>
-                <label className="text-sm font-medium" htmlFor={fieldId}>
-                  {field.label}
-                  {field.rule.required ? (
-                    <span className="text-danger"> *</span>
-                  ) : null}
-                </label>
-                {fieldKey === "message" ? (
-                  <Textarea
-                    {...sharedProps}
-                    maxLength={maxLength}
-                    onChange={(event) =>
-                      setFieldValue(fieldKey, event.target.value)
-                    }
-                    placeholder={field.rule.placeholder}
-                    ref={(node) => {
-                      inputRefs.current[fieldKey] = node;
-                    }}
-                  />
-                ) : (
-                  <Input
-                    {...sharedProps}
-                    inputMode={fieldKey === "age" ? "numeric" : undefined}
-                    max={field.rule.maxValue}
-                    maxLength={maxLength}
-                    min={field.rule.minValue}
-                    onChange={(event) =>
-                      setFieldValue(fieldKey, event.target.value)
-                    }
-                    placeholder={field.rule.placeholder}
-                    ref={(node) => {
-                      inputRefs.current[fieldKey] = node;
-                    }}
-                    type={
-                      fieldKey === "age"
-                        ? "number"
-                        : field.kind === "date" || field.kind === "time"
-                          ? field.kind
-                          : "text"
-                    }
-                  />
-                )}
-                {maxLength ? (
-                  <CharacterCounter
-                    alwaysShow={fieldKey === "message" || touchedFields[fieldKey]}
-                    maxLength={maxLength}
-                    value={value}
-                  />
-                ) : null}
-                <FieldError id={errorId}>{error}</FieldError>
-              </div>
-            );
-          })}
-
-          <FormNavigation
-            canGoBack={currentStepIndex > 0}
-            isLastStep={isLastStep}
-            onBack={goBack}
-          />
-        </form>
-      </Card>
+    <div className="min-h-screen">
+      <PersonalizationEditor
+        key={activeTemplate.id}
+        canRedo={history.future.length > 0}
+        canUndo={history.past.length > 0}
+        constraints={activeConstraints}
+        onAddTextElement={addTextElement}
+        onContinue={requestPreview}
+        onDeleteTextElement={deleteTextElement}
+        onDuplicateTextElement={duplicateTextElement}
+        onRedo={redo}
+        onReorderTextElement={reorderTextElement}
+        onTemplateChange={selectTemplate}
+        onUndo={undo}
+        onUpdateTextElement={updateTextElement}
+        scene={activeScene}
+        template={activeTemplate}
+        templates={renderingTemplates}
+      />
     </div>
   );
 }

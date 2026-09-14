@@ -1,6 +1,8 @@
 import { activePilotCategory } from "@/features/catalog/data/mock-categories";
 import { spaceBirthdayAssets } from "@/features/collections/data/space-birthday-assets";
 import {
+  spaceBackingProduct,
+  spaceBannerProduct,
   spaceInvitationProduct,
   spaceStickersPackProduct,
 } from "@/features/products/data/mock-products";
@@ -17,7 +19,12 @@ export const mockCollections: PublicCollection[] = [
     categoryName: activePilotCategory.name,
     status: "published",
     tags: ["infantil", "espacio", "cumpleaños"],
-    products: [spaceInvitationProduct, spaceStickersPackProduct],
+    products: [
+      spaceInvitationProduct,
+      spaceStickersPackProduct,
+      spaceBannerProduct,
+      spaceBackingProduct,
+    ],
     prototype: {
       assets: {
         cover: spaceBirthdayAssets.cover.id,

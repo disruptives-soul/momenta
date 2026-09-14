@@ -1,0 +1,88 @@
+{
+  "id": "space-birthday-invitation-v1",
+  "collectionSlug": "space-birthday",
+  "productCode": "essential-invitation",
+  "widthMm": 297,
+  "heightMm": 420,
+  "master": {
+    "path": "space-birthday/invitation/INVITACION A3.jpg",
+    "contentType": "image/jpeg"
+  },
+  "preview": {
+    "src": "/momenta/space-birthday/invitation/preview.webp",
+    "widthPx": 700
+  },
+  "fields": {
+    "headline": {
+      "label": "Encabezado",
+      "defaultValue": "SAVE THE DATE",
+      "x": 1754,
+      "y": 1260,
+      "width": 1780,
+      "fontFamily": "Arial, Helvetica, sans-serif",
+      "pdfFont": "helvetica",
+      "fontSize": 118,
+      "minFontSize": 72,
+      "fill": "#9da192",
+      "align": "center",
+      "maxLines": 1
+    },
+    "dateLine": {
+      "label": "Fecha y hora",
+      "defaultValue": "january 16 5pm",
+      "x": 1754,
+      "y": 1460,
+      "width": 1700,
+      "fontFamily": "Arial, Helvetica, sans-serif",
+      "pdfFont": "helvetica",
+      "fontSize": 98,
+      "minFontSize": 60,
+      "fill": "#9da192",
+      "align": "center",
+      "maxLines": 1
+    },
+    "monogram": {
+      "label": "Texto principal",
+      "defaultValue": "S & M",
+      "x": 1754,
+      "y": 2230,
+      "width": 1900,
+      "fontFamily": "Georgia, serif",
+      "pdfFont": "times-roman",
+      "fontSize": 520,
+      "minFontSize": 220,
+      "fill": "#8e9678",
+      "align": "center",
+      "maxLines": 1
+    },
+    "names": {
+      "label": "Nombres",
+      "defaultValue": "SARAH & MICHAEL",
+      "x": 1754,
+      "y": 2580,
+      "width": 1600,
+      "fontFamily": "Arial, Helvetica, sans-serif",
+      "pdfFont": "helvetica",
+      "fontSize": 74,
+      "minFontSize": 48,
+      "fill": "#b3ad9d",
+      "align": "center",
+      "maxLines": 1
+    },
+    "note": {
+      "label": "Mensaje",
+      "defaultValue": "Lorem ipsum dolor sit amet, consect tur adipiscing elit, sed do eiusmod tempor incididunt ut labore.",
+      "x": 1754,
+      "y": 3470,
+      "width": 1660,
+      "fontFamily": "Arial, Helvetica, sans-serif",
+      "pdfFont": "helvetica",
+      "fontSize": 72,
+      "minFontSize": 44,
+      "fill": "#aaa89d",
+      "align": "center",
+      "maxLines": 4,
+      "lineHeight": 1.22
+    }
+  }
+}

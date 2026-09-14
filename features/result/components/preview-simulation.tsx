@@ -10,8 +10,11 @@ import { trackValidationEvent } from "@/features/analytics/services/track-valida
 import { loadPersonalizationDraft } from "@/features/personalization/services/personalization-draft-storage";
 import {
   demoPersonalizationProjectId,
+  getDraftTemplateLayout,
   type PersonalizationDraft,
 } from "@/features/personalization/types/personalization-draft";
+import { TemplatePreview } from "@/features/rendering/components/template-preview";
+import { renderingTemplates } from "@/features/rendering/templates/template-registry";
 import {
   getPrototypeProjectErrors,
   hasCompletePrototypeDraft,
@@ -19,7 +22,6 @@ import {
   resultEventPayload,
 } from "../services/prototype-result";
 import type { PrototypeGenerationState } from "../types/prototype-result-state";
-import { PrototypeInvitationPreview } from "./prototype-invitation-preview";
 
 const generationMessages = [
   "Estamos preparando tu invitación",
@@ -31,6 +33,13 @@ type PreviewSimulationProps = {
   projectId: string;
   simulateError?: boolean;
 };
+
+function getTemplateLabel(templateId: string) {
+  if (templateId.includes("banner")) return "Banner 2 x 1 m";
+  if (templateId.includes("backing")) return "Backing 1 x 1 m";
+  if (templateId.includes("stickers")) return "Stickers A3";
+  return "Invitacion A3";
+}
 
 export function PreviewSimulation({
   projectId,
@@ -45,6 +54,13 @@ export function PreviewSimulation({
   const isValidProject = isValidPrototypeProject(projectId);
   const isComplete = hasCompletePrototypeDraft(draft);
   const errors = getPrototypeProjectErrors(draft);
+  const personalizedTemplates = renderingTemplates
+    .filter((template) => (draft.scenes[template.id]?.length ?? 0) > 0)
+    .sort((left, right) => {
+      if (left.id === draft.templateId) return -1;
+      if (right.id === draft.templateId) return 1;
+      return 0;
+    });
 
   useEffect(() => {
     if (!isValidProject || !isComplete) {
@@ -76,7 +92,7 @@ export function PreviewSimulation({
 
   useEffect(() => {
     if (state === "ready") {
-      previewRef.current?.focus();
+      previewRef.current?.focus({ preventScroll: true });
     }
   }, [state]);
 
@@ -177,17 +193,54 @@ export function PreviewSimulation({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_0.75fr] lg:items-start">
-      <div ref={previewRef} tabIndex={-1}>
-        <PrototypeInvitationPreview values={draft.values} />
+      <div className="grid gap-4 outline-none" ref={previewRef} tabIndex={-1}>
+        <div>
+          <p className="text-sm font-medium text-primary">
+            Plantillas personalizadas
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold">
+            Revisa todas las piezas editadas
+          </h2>
+        </div>
+        <div
+          className={
+            personalizedTemplates.length > 1
+              ? "grid gap-5 sm:grid-cols-2"
+              : "grid gap-5"
+          }
+        >
+          {personalizedTemplates.map((template) => (
+            <Card className="grid gap-3 p-3" key={template.id}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold">
+                  {getTemplateLabel(template.id)}
+                </p>
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                  Personalizada
+                </span>
+              </div>
+              <TemplatePreview
+                compact={personalizedTemplates.length > 1}
+                layout={getDraftTemplateLayout(draft, template.id)}
+                scene={draft.scenes[template.id]}
+                templateId={template.id}
+                values={draft.valuesByTemplate[template.id] ?? draft.values}
+              />
+            </Card>
+          ))}
+        </div>
       </div>
       <Card className="grid gap-5">
         <div>
           <p className="text-sm font-medium text-primary">
             Tu vista previa está lista
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">Revisá el diseño</h1>
+          <h1 className="mt-2 text-3xl font-semibold">
+            Revisa las plantillas
+          </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Revisa que todos los datos estén correctos antes de continuar.
+            Revisa que todos los textos personalizados esten correctos antes de
+            continuar.
           </p>
         </div>
         <div className="grid gap-3">
@@ -198,7 +251,7 @@ export function PreviewSimulation({
             }}
             type="button"
           >
-            Confirmar diseño
+            Confirmar plantillas
           </Button>
           <Button
             asChild

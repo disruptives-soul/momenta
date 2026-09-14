@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "./container";
@@ -12,6 +15,12 @@ const navigation = [
 const showDebugShortcut = process.env.NEXT_PUBLIC_MOMENTA_DEBUG_NAV === "1";
 
 export function SiteHeader() {
+  const pathname = usePathname();
+
+  if (pathname === "/collections/space-birthday/personalize") {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/92 backdrop-blur">
       <Container className="flex min-h-16 items-center justify-between gap-4">

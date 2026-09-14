@@ -9,6 +9,15 @@ export type {
   ProductAccess,
   ProductOutputFormat,
 } from "./entities/product";
+export type {
+  PersonalizationData,
+  PersonalizationField,
+  PersonalizationFieldControls,
+  PrintableTemplate,
+  PrintableTextAlign,
+  PrintableTextArc,
+  PrintableTextCopy,
+} from "./entities/printable-template";
 export type { Project, ProjectStatus } from "./entities/project";
 export type { Purchase, PurchaseStatus } from "./entities/purchase";
 export type {

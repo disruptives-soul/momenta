@@ -7,30 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/status-state";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
-import { spaceInvitationProduct } from "@/features/products/data/mock-products";
-import { getStepForField } from "../config/personalization-steps";
-import {
-  formatPersonalizationValue,
-} from "../services/personalization-formatters";
-import {
-  loadPersonalizationDraft,
-  savePersonalizationDraft,
-} from "../services/personalization-draft-storage";
+import { TemplatePreview } from "@/features/rendering/components/template-preview";
+import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
+import { loadPersonalizationDraft } from "../services/personalization-draft-storage";
 import {
   demoPersonalizationProjectId,
+  getDraftTemplateLayout,
   type PersonalizationDraft,
-  type PersonalizationFieldKey,
 } from "../types/personalization-draft";
-import { validateAllPersonalizationValues } from "../validators/personalization-validator";
-
-const summaryFields: Array<{ key: PersonalizationFieldKey; label: string }> = [
-  { key: "name", label: "Nombre" },
-  { key: "age", label: "Edad" },
-  { key: "date", label: "Fecha" },
-  { key: "time", label: "Hora" },
-  { key: "place", label: "Lugar" },
-  { key: "message", label: "Mensaje" },
-];
 
 type PersonalizationSummaryProps = {
   projectId: string;
@@ -40,8 +24,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
   const router = useRouter();
   const [draft] = useState<PersonalizationDraft>(loadPersonalizationDraft);
   const isValidProject = projectId === demoPersonalizationProjectId;
-  const errors = validateAllPersonalizationValues(draft.values);
-  const hasErrors = Object.keys(errors).length > 0;
+  const template = getRenderingTemplate(draft.templateId);
 
   useEffect(() => {
     trackValidationEvent("review_viewed", {
@@ -50,44 +33,23 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
     });
   }, [draft.collectionSlug, draft.productCode]);
 
-  if (!isValidProject) {
+  if (!isValidProject || !template) {
     return (
       <ErrorState
         action={
           <Button asChild>
             <Link href="/collections/space-birthday/personalize">
-              Volver a personalizar
+              Volver al editor
             </Link>
           </Button>
         }
-        description="No encontramos una invitación disponible para revisar."
-        title="Invitación no disponible"
+        description="No encontramos una plantilla disponible para revisar."
+        title="Plantilla no disponible"
       />
     );
   }
 
-
-  function editField(field: PersonalizationFieldKey) {
-    const step = getStepForField(field);
-    savePersonalizationDraft({
-      ...draft,
-      currentStep: step.id,
-    });
-    trackValidationEvent("personalization_edit_requested", {
-      collectionSlug: draft.collectionSlug,
-      productCode: draft.productCode,
-      field,
-      step: step.id,
-    });
-    router.push(`/collections/space-birthday/personalize?step=${step.id}`);
-  }
-
   function requestPreview() {
-    if (hasErrors) {
-      router.push("/collections/space-birthday/personalize");
-      return;
-    }
-
     trackValidationEvent("preview_requested", {
       collectionSlug: draft.collectionSlug,
       productCode: draft.productCode,
@@ -96,68 +58,33 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
   }
 
   return (
-    <div className="grid gap-6">
-      <Card className="grid gap-4">
-        <p className="text-sm font-medium text-primary">
-          Space Birthday · {spaceInvitationProduct.name}
-        </p>
-        <h1 className="text-3xl font-semibold md:text-5xl">Revisar datos</h1>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Revisá que la información esté bien antes de preparar la vista previa.
-        </p>
+    <div className="grid gap-6 lg:grid-cols-[1fr_0.75fr] lg:items-start">
+      <TemplatePreview
+        layout={getDraftTemplateLayout(draft, template.id)}
+        templateId={template.id}
+        values={draft.values}
+      />
+
+      <Card className="grid gap-5">
+        <div>
+          <p className="text-sm font-medium text-primary">Revisión</p>
+          <h1 className="mt-2 text-3xl font-semibold">Revisá la plantilla</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Confirmá que los textos se ven bien antes de generar el archivo final.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Button onClick={requestPreview} type="button">
+            Generar vista previa
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href="/collections/space-birthday/personalize">
+              Editar textos
+            </Link>
+          </Button>
+        </div>
       </Card>
-
-      {hasErrors ? (
-        <ErrorState
-          action={
-            <Button asChild>
-              <Link href="/collections/space-birthday/personalize">
-                Completar datos
-              </Link>
-            </Button>
-          }
-          description="Hay datos obligatorios incompletos o inválidos."
-          title="Faltan datos para revisar"
-        />
-      ) : (
-        <Card>
-          <dl className="grid gap-4">
-            {summaryFields.map((field) => (
-              <div
-                className="grid gap-3 rounded-md border border-border bg-muted p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-                key={field.key}
-              >
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">
-                    {field.label}
-                  </dt>
-                  <dd className="mt-1 text-lg font-semibold">
-                    {formatPersonalizationValue(field.key, draft.values)}
-                  </dd>
-                </div>
-                <Button
-                  onClick={() => editField(field.key)}
-                  type="button"
-                  variant="secondary"
-                >
-                  Editar
-                </Button>
-              </div>
-            ))}
-          </dl>
-        </Card>
-      )}
-
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-        <Button asChild variant="secondary">
-          <Link href="/collections/space-birthday/personalize">
-            Editar datos
-          </Link>
-        </Button>
-        <Button disabled={hasErrors} onClick={requestPreview} type="button">
-          Generar vista previa
-        </Button>
-      </div>
     </div>
   );
 }

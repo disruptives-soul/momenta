@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: CollectionPageProps) {
 
   if (!collection) {
     return {
-      title: "Colección no encontrada",
+      title: "Coleccion no encontrada",
     };
   }
 
@@ -44,8 +44,6 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
   }
 
   const products = collection.products as PrototypeProduct[];
-  const freeProduct = products.find((product) => product.access === "free");
-  const premiumProduct = products.find((product) => product.access === "premium");
 
   return (
     <main>
@@ -59,7 +57,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
           <Breadcrumbs
             items={[
               { href: "/", label: "Inicio" },
-              { href: "/catalog", label: "Catálogo" },
+              { href: "/catalog", label: "Catalogo" },
               {
                 href: `/categories/${collection.categorySlug}`,
                 label: collection.categoryName,
@@ -109,9 +107,9 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
       <Container className="grid gap-10 py-10">
         <section className="grid gap-5 md:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <h2 className="text-2xl font-semibold">Qué podés personalizar</h2>
+            <h2 className="text-2xl font-semibold">Que podes personalizar</h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              El diseño ya está definido. El usuario solo completa los datos del
+              El diseno ya esta definido. El usuario solo completa los datos del
               evento para mantener la experiencia simple.
             </p>
           </div>
@@ -131,17 +129,16 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
 
         <section>
           <div className="mb-5">
-            <h2 className="text-2xl font-semibold">Productos de la colección</h2>
+            <h2 className="text-2xl font-semibold">Productos de la coleccion</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Elige la invitación gratuita o suma el pack Premium para completar
-              la celebración.
+              Estas son las piezas reales disponibles desde los assets cargados
+              para esta coleccion.
             </p>
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
-            {freeProduct ? <ProductOptionCard product={freeProduct} /> : null}
-            {premiumProduct ? (
-              <ProductOptionCard product={premiumProduct} />
-            ) : null}
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {products.map((product) => (
+              <ProductOptionCard key={product.id} product={product} />
+            ))}
           </div>
         </section>
 
@@ -153,12 +150,12 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
                 eventPayload={{ product: "invitation" }}
                 href="/collections/space-birthday/personalize"
               >
-                Iniciar personalización
+                Iniciar personalizacion
               </EventLink>
             </Button>
           }
-          description="Completá los datos de la celebración y revisá la vista previa antes de continuar."
-          title="Empezá con la Invitación esencial"
+          description="Completa los datos de la celebracion y revisa la vista previa antes de continuar."
+          title="Empeza con la Invitacion A3"
         />
       </Container>
     </main>

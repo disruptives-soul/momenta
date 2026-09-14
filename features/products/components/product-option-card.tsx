@@ -1,13 +1,20 @@
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EventLink } from "@/features/analytics/components/event-link";
-import { PlaceholderArtwork } from "@/features/prototype/components/placeholder-artwork";
+import { cn } from "@/lib/utils";
 import type { PrototypeProduct } from "../data/mock-products";
 
 type ProductOptionCardProps = {
   product: PrototypeProduct;
 };
+
+const previewAspectClass = {
+  landscape: "aspect-[2/1]",
+  portrait: "aspect-[297/420]",
+  square: "aspect-square",
+} as const;
 
 export function ProductOptionCard({ product }: ProductOptionCardProps) {
   const isPremium = product.access === "premium";
@@ -37,17 +44,26 @@ export function ProductOptionCard({ product }: ProductOptionCardProps) {
         ) : null}
       </div>
 
-      <PlaceholderArtwork
-        label={isPremium ? "Vista Premium" : "Vista Free"}
-        title={product.name}
-        variant={isPremium ? "stickers" : "invitation"}
-      />
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-md border border-border bg-muted",
+          previewAspectClass[product.prototype.previewAspect],
+        )}
+      >
+        <Image
+          alt={product.prototype.previewAlt}
+          className="object-cover"
+          fill
+          sizes="(min-width: 1024px) 30vw, 90vw"
+          src={product.prototype.previewSrc}
+        />
+      </div>
 
       <div>
         <p className="text-sm font-medium">Incluye</p>
         <ul className="mt-3 grid gap-2 text-sm text-muted-foreground">
           {product.prototype.highlights.map((highlight) => (
-            <li key={highlight}>• {highlight}</li>
+            <li key={highlight}>- {highlight}</li>
           ))}
         </ul>
       </div>
