@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import fontkit from "@pdf-lib/fontkit";
 import {
   degrees,
@@ -16,11 +17,12 @@ import type {
   InvitationTemplate,
   RuntimeInvitationTemplate,
   TextElement,
+  TemplateFontAsset,
   TemplateTextField,
 } from "../templates/template-types";
 import { spaceBirthdayInvitationTemplate } from "../templates/space-birthday-invitation-template";
 import {
-  getMasterAssetPath,
+  loadOriginalMasterJpgBytes,
   loadRuntimeInvitationTemplate,
 } from "../templates/load-runtime-template";
 import {
@@ -34,6 +36,7 @@ import {
   pxToPdfX,
   pxToPdfY,
 } from "./template-coordinate-conversion";
+import { addInstructionPageTemplate } from "./instruction-page-template";
 
 function hexToRgb(value: string) {
   const normalized = value.replace("#", "");
@@ -58,6 +61,78 @@ function getElementStandardFontName(element: TextElement) {
   }
 
   return isBold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica;
+}
+
+function getFontAssetPath(fontAssetPath: string) {
+  return join(
+    process.cwd(),
+    "features",
+    "rendering",
+    "assets",
+    fontAssetPath,
+  );
+}
+
+function getFontAssetKey(fontAsset: TemplateFontAsset, fontWeight?: number) {
+  const isBold = (fontWeight ?? 500) >= 700;
+
+  return isBold && fontAsset.bold ? fontAsset.bold : fontAsset.regular;
+}
+
+type StandardPdfFonts = {
+  helvetica: PDFFont;
+  helveticaBold: PDFFont;
+  timesRoman: PDFFont;
+  timesRomanBold: PDFFont;
+};
+
+function getEmbeddedStandardFont(
+  standardFontName: StandardFonts,
+  standardFonts: StandardPdfFonts,
+) {
+  if (standardFontName === StandardFonts.TimesRoman) {
+    return standardFonts.timesRoman;
+  }
+
+  if (standardFontName === StandardFonts.TimesRomanBold) {
+    return standardFonts.timesRomanBold;
+  }
+
+  if (standardFontName === StandardFonts.HelveticaBold) {
+    return standardFonts.helveticaBold;
+  }
+
+  return standardFonts.helvetica;
+}
+
+async function getPdfFont(
+  pdf: PDFDocument,
+  standardFonts: StandardPdfFonts,
+  customFontCache: Map<string, PDFFont>,
+  fontSource: Pick<TextElement, "fontAsset" | "fontWeight" | "pdfFont">,
+) {
+  if (fontSource.fontAsset) {
+    const fontAssetKey = getFontAssetKey(
+      fontSource.fontAsset,
+      fontSource.fontWeight,
+    );
+    const cachedFont = customFontCache.get(fontAssetKey);
+
+    if (cachedFont) {
+      return cachedFont;
+    }
+
+    const fontBytes = await readFile(getFontAssetPath(fontAssetKey));
+    const font = await pdf.embedFont(fontBytes, { subset: true });
+    customFontCache.set(fontAssetKey, font);
+
+    return font;
+  }
+
+  return getEmbeddedStandardFont(
+    getElementStandardFontName(fontSource as TextElement),
+    standardFonts,
+  );
 }
 
 function getStandardFontName(field: TemplateTextField) {
@@ -330,12 +405,17 @@ export async function renderPersonalizedInvitationPdf(
 
   const { widthPt, heightPt } = getPdfPageSize(template);
   const page = pdf.addPage([widthPt, heightPt]);
-  const masterBytes = await readFile(getMasterAssetPath(template));
+  // Preserve color pipeline: never process the master with Sharp before PDF.
+  // The original JPG bytes go directly into pdf-lib.
+  const masterBytes = await loadOriginalMasterJpgBytes(template);
   const master = await pdf.embedJpg(masterBytes);
-  const helvetica = await pdf.embedFont(StandardFonts.Helvetica);
-  const helveticaBold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const timesRoman = await pdf.embedFont(StandardFonts.TimesRoman);
-  const timesRomanBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
+  const standardFonts: StandardPdfFonts = {
+    helvetica: await pdf.embedFont(StandardFonts.Helvetica),
+    helveticaBold: await pdf.embedFont(StandardFonts.HelveticaBold),
+    timesRoman: await pdf.embedFont(StandardFonts.TimesRoman),
+    timesRomanBold: await pdf.embedFont(StandardFonts.TimesRomanBold),
+  };
+  const customFontCache = new Map<string, PDFFont>();
 
   page.drawImage(master, {
     x: 0,
@@ -347,15 +427,12 @@ export async function renderPersonalizedInvitationPdf(
   if (scene) {
     for (const element of scene) {
       const value = normalizePdfText(element.text);
-      const standardFontName = getElementStandardFontName(element);
-      const font =
-        standardFontName === StandardFonts.TimesRoman
-          ? timesRoman
-          : standardFontName === StandardFonts.TimesRomanBold
-            ? timesRomanBold
-            : standardFontName === StandardFonts.HelveticaBold
-              ? helveticaBold
-              : helvetica;
+      const font = await getPdfFont(
+        pdf,
+        standardFonts,
+        customFontCache,
+        element,
+      );
       const maxWidthPt = pxToPdfWidth(element.width, template, widthPt);
       const fontSize = fitElementFontSize(
         { ...element, text: value },
@@ -393,21 +470,20 @@ export async function renderPersonalizedInvitationPdf(
       });
     }
 
+    await addInstructionPageTemplate(pdf, template, {
+      regular: standardFonts.helvetica,
+      bold: standardFonts.helveticaBold,
+    });
+
     return pdf.save();
   }
 
   for (const [fieldKey, baseField] of Object.entries(template.fields)) {
     const field = applyFieldOverride(baseField, layout[fieldKey]);
     const value = normalizePdfText(getTemplateFieldValue(fieldKey, field, values));
-    const standardFontName = getStandardFontName(field);
-    const font =
-      standardFontName === StandardFonts.TimesRoman
-        ? timesRoman
-        : standardFontName === StandardFonts.TimesRomanBold
-          ? timesRomanBold
-          : standardFontName === StandardFonts.HelveticaBold
-            ? helveticaBold
-            : helvetica;
+    const font = field.fontAsset
+      ? await getPdfFont(pdf, standardFonts, customFontCache, field)
+      : getEmbeddedStandardFont(getStandardFontName(field), standardFonts);
     const maxWidthPt = pxToPdfWidth(field.width, template, widthPt);
     const fontSize = fitFontSize(value, field, font, maxWidthPt, template, heightPt);
     if (field.arc) {
@@ -452,6 +528,42 @@ export async function renderPersonalizedInvitationPdf(
         });
       });
     }
+  }
+
+  await addInstructionPageTemplate(pdf, template, {
+    regular: standardFonts.helvetica,
+    bold: standardFonts.helveticaBold,
+  });
+
+  return pdf.save();
+}
+
+export type PersonalizedPdfTemplateInput = {
+  values: PersonalizationValues;
+  template: InvitationTemplate;
+  layout?: PersonalizationLayoutOverrides;
+  scene?: TextElement[];
+};
+
+export async function renderPersonalizedTemplatesPdf(
+  templates: PersonalizedPdfTemplateInput[],
+) {
+  const pdf = await PDFDocument.create();
+
+  for (const item of templates) {
+    const templatePdfBytes = await renderPersonalizedInvitationPdf(
+      item.values,
+      item.template,
+      item.layout,
+      item.scene,
+    );
+    const templatePdf = await PDFDocument.load(templatePdfBytes);
+    const pages = await pdf.copyPages(
+      templatePdf,
+      templatePdf.getPageIndices(),
+    );
+
+    pages.forEach((page) => pdf.addPage(page));
   }
 
   return pdf.save();

@@ -6,6 +6,14 @@ export const backing1x1Template: InvitationTemplate = {
   productCode: "backing-1x1",
   widthMm: 1000,
   heightMm: 1000,
+  printProfile: {
+    id: "backing-1x1-square",
+    widthMm: 1000,
+    heightMm: 1000,
+    label: "Backing 1 x 1 m",
+    instructionsKey: "large-format-backing",
+    expectedPpi: 150,
+  },
   widthPx: 5907,
   heightPx: 5906,
   master: {

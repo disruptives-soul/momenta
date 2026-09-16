@@ -7,8 +7,14 @@ import {
   spaceStickersPackProduct,
 } from "@/features/products/data/mock-products";
 import { LocalRenderProvider } from "@/features/rendering/services/local-render-provider";
-import { renderPersonalizedInvitationPdf } from "@/features/rendering/services/pdf-template-renderer";
-import { getMasterAssetPath } from "@/features/rendering/templates/load-runtime-template";
+import {
+  renderPersonalizedInvitationPdf,
+  renderPersonalizedTemplatesPdf,
+} from "@/features/rendering/services/pdf-template-renderer";
+import {
+  getMasterAssetPath,
+  TemplatePrintProfileError,
+} from "@/features/rendering/templates/load-runtime-template";
 import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
 import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
 import type {
@@ -22,6 +28,14 @@ export const runtime = "nodejs";
 type RenderRequestBody = {
   templateId?: string;
   format?: RenderFormat;
+  data?: Partial<PersonalizationValues>;
+  layout?: PersonalizationLayoutOverrides;
+  scene?: TextElement[];
+  templates?: RenderTemplateRequest[];
+};
+
+type RenderTemplateRequest = {
+  templateId?: string;
   data?: Partial<PersonalizationValues>;
   layout?: PersonalizationLayoutOverrides;
   scene?: TextElement[];
@@ -63,6 +77,20 @@ async function svgToPng(svg: string) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
+function renderErrorResponse(error: unknown) {
+  if (error instanceof TemplatePrintProfileError) {
+    return NextResponse.json(
+      {
+        error: error.message,
+        diagnostics: error.diagnostics,
+      },
+      { status: 422 },
+    );
+  }
+
+  throw error;
+}
+
 function renderFileResponse(
   body: BodyInit,
   template: InvitationTemplate,
@@ -75,6 +103,26 @@ function renderFileResponse(
       "Content-Type": contentType,
     },
   });
+}
+
+function renderNamedFileResponse(
+  body: BodyInit,
+  fileName: string,
+  contentType: string,
+) {
+  return new Response(body, {
+    headers: {
+      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Content-Type": contentType,
+    },
+  });
+}
+
+function bytesToResponseBody(bytes: Uint8Array) {
+  const body = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(body).set(bytes);
+
+  return body;
 }
 
 export async function POST(request: Request) {
@@ -98,6 +146,57 @@ export async function POST(request: Request) {
     );
   }
 
+  if (body.templates?.length) {
+    if (format !== "pdf") {
+      return NextResponse.json(
+        { error: "Batch render only supports pdf." },
+        { status: 400 },
+      );
+    }
+
+    const templates = body.templates.map((item) => {
+      if (!item.templateId) {
+        return null;
+      }
+
+      const template = getRenderingTemplate(item.templateId);
+
+      if (!template) {
+        return null;
+      }
+
+      return {
+        values: normalizeData(item.data),
+        template,
+        layout: item.layout,
+        scene: item.scene,
+      };
+    });
+
+    if (templates.some((item) => item === null)) {
+      return NextResponse.json(
+        { error: "Every batch template needs a valid templateId." },
+        { status: 400 },
+      );
+    }
+
+    let pdf: Uint8Array;
+
+    try {
+      pdf = await renderPersonalizedTemplatesPdf(
+        templates.filter((item) => item !== null),
+      );
+    } catch (error) {
+      return renderErrorResponse(error);
+    }
+
+    return renderNamedFileResponse(
+      bytesToResponseBody(pdf),
+      "momenta-space-birthday-templates.pdf",
+      "application/pdf",
+    );
+  }
+
   if (!body.templateId) {
     return NextResponse.json(
       { error: "templateId is required." },
@@ -117,16 +216,25 @@ export async function POST(request: Request) {
   const values = normalizeData(body.data);
 
   if (format === "pdf") {
-    const pdf = Buffer.from(
-      await renderPersonalizedInvitationPdf(
+    let pdf: Uint8Array;
+
+    try {
+      pdf = await renderPersonalizedInvitationPdf(
         values,
         renderingTemplate,
         body.layout,
         body.scene,
-      ),
-    );
+      );
+    } catch (error) {
+      return renderErrorResponse(error);
+    }
 
-    return renderFileResponse(pdf, renderingTemplate, format, "application/pdf");
+    return renderFileResponse(
+      bytesToResponseBody(pdf),
+      renderingTemplate,
+      format,
+      "application/pdf",
+    );
   }
 
   const artworkHref = await loadMasterDataUri(renderingTemplate);

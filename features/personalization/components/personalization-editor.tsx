@@ -63,7 +63,7 @@ const zoomLevels = [0.75, 0.9, 1, 1.15, 1.3];
 const editorSteps = [
   { id: "design", label: "Diseno", icon: FileText },
   { id: "options", label: "Opciones", icon: SlidersHorizontal },
-  { id: "review", label: "Revision", icon: Eye },
+  { id: "review", label: "Revisar", icon: Eye },
 ] as const;
 type EditorPanel = "edit" | "text" | "layers" | "guides";
 type EditorStep = (typeof editorSteps)[number]["id"];
@@ -74,6 +74,9 @@ type ProductOptions = {
   paper: "mate" | "premium";
   corners: "square" | "rounded";
   print: "standard" | "hd";
+  envelopes: "white" | "none";
+  attribution: "remove" | "add";
+  quantity: number;
 };
 
 const defaultProductOptions: ProductOptions = {
@@ -82,6 +85,9 @@ const defaultProductOptions: ProductOptions = {
   paper: "mate",
   corners: "square",
   print: "standard",
+  envelopes: "white",
+  attribution: "remove",
+  quantity: 1,
 };
 
 function getTemplateLabel(templateId: string) {
@@ -99,6 +105,28 @@ function getNextColor(colors: string[], currentColor: string) {
   }
 
   return colors[(currentIndex + 1) % colors.length] ?? currentColor;
+}
+
+function getFormatLabel(value: ProductOptions["format"]) {
+  return value === "impreso" ? "Invitation impreso" : "Archivo digital";
+}
+
+function getSizeLabel(value: ProductOptions["size"]) {
+  if (value === "a4") return "A4 : 21 x 29.7 cm";
+  if (value === "stickers") return "Stickers A3";
+  return "A3 : 29.7 x 42 cm";
+}
+
+function getPaperLabel(value: ProductOptions["paper"]) {
+  return value === "premium" ? "Premium texturado" : "Mate Signatura";
+}
+
+function getCornersLabel(value: ProductOptions["corners"]) {
+  return value === "rounded" ? "Redondeada" : "Cuadrada";
+}
+
+function getPrintLabel(value: ProductOptions["print"]) {
+  return value === "hd" ? "HD" : "Estandar";
 }
 
 export function PersonalizationEditor({
@@ -138,6 +166,12 @@ export function PersonalizationEditor({
   const selectedIndex = selectedElement
     ? scene.findIndex((element) => element.id === selectedElement.id)
     : -1;
+  const sampleTextElements = scene
+    .filter((element) =>
+      /lorem|save the date|sarah|michael|anniversary|welcome/i.test(element.text),
+    )
+    .slice(0, 4);
+  const estimatedTotal = productOptions.quantity * 2490;
 
   useEffect(() => {
     if (!selectedElementId) return;
@@ -338,7 +372,7 @@ export function PersonalizationEditor({
                 {activeStep === "options"
                   ? "Opciones"
                   : activeStep === "review"
-                    ? "Revision"
+                    ? "Revisar"
                     : activePanel === "layers"
                       ? "Capas"
                       : activePanel === "guides"
@@ -366,16 +400,27 @@ export function PersonalizationEditor({
 
           {activeStep === "options" ? (
             <div className="grid gap-4">
-              <div className="rounded-md border border-border bg-muted/40 p-3">
-                <p className="text-sm font-semibold">Formato</p>
-                <div className="mt-3 grid gap-2">
+              <div className="rounded-md border border-primary/25 bg-primary/10 p-3">
+                <p className="text-sm font-semibold text-primary">
+                  Producto trending
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Estas opciones preparan el set completo para imprimir o entregar
+                  digitalmente.
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold">Elige tu formato</p>
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    ["impreso", "Impreso"],
-                    ["digital", "Digital"],
+                    ["impreso", "Invitation impreso"],
+                    ["digital", "Archivo digital"],
                   ].map(([value, label]) => (
                     <button
+                      aria-pressed={productOptions.format === value}
                       className={cn(
-                        "flex items-center justify-between rounded-md border p-3 text-left text-sm",
+                        "flex min-h-12 items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-medium",
                         productOptions.format === value
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-surface hover:bg-muted",
@@ -389,7 +434,7 @@ export function PersonalizationEditor({
                       }
                       type="button"
                     >
-                      <span>{label}</span>
+                      {label}
                       {productOptions.format === value ? (
                         <Check className="size-4" />
                       ) : null}
@@ -398,17 +443,26 @@ export function PersonalizationEditor({
                 </div>
               </div>
 
-              <div className="rounded-md border border-border bg-muted/40 p-3">
-                <p className="text-sm font-semibold">Tamano</p>
-                <div className="mt-3 grid gap-2">
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold">Tamano</p>
+                  <button
+                    className="text-xs font-medium text-primary hover:underline"
+                    type="button"
+                  >
+                    Tabla de tamanos
+                  </button>
+                </div>
+                <div className="grid gap-2">
                   {[
-                    ["a3", "A3 - 297 x 420 mm"],
-                    ["a4", "A4 - 210 x 297 mm"],
-                    ["stickers", "Stickers A3"],
-                  ].map(([value, label]) => (
+                    ["a3", "A3 : 29.7 x 42 cm", "Set completo"],
+                    ["a4", "A4 : 21 x 29.7 cm", "- ARS 700"],
+                    ["stickers", "Stickers A3", "+ ARS 1.990"],
+                  ].map(([value, label, price]) => (
                     <button
+                      aria-pressed={productOptions.size === value}
                       className={cn(
-                        "rounded-md border p-3 text-left text-sm",
+                        "flex min-h-12 items-center justify-between rounded-md border px-3 py-2 text-left text-sm",
                         productOptions.size === value
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-surface hover:bg-muted",
@@ -419,54 +473,24 @@ export function PersonalizationEditor({
                       }
                       type="button"
                     >
-                      {label}
+                      <span className="font-medium">{label}</span>
+                      <span className="text-xs text-muted-foreground">{price}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-md border border-border bg-muted/40 p-3">
-                <p className="text-sm font-semibold">Papel e impresion</p>
-                <div className="mt-3 grid gap-2">
-                  <select
-                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                    onChange={(event) =>
-                      updateProductOption(
-                        "paper",
-                        event.target.value as ProductOptions["paper"],
-                      )
-                    }
-                    value={productOptions.paper}
-                  >
-                    <option value="mate">Mate Signatura</option>
-                    <option value="premium">Premium texturado</option>
-                  </select>
-                  <select
-                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                    onChange={(event) =>
-                      updateProductOption(
-                        "print",
-                        event.target.value as ProductOptions["print"],
-                      )
-                    }
-                    value={productOptions.print}
-                  >
-                    <option value="standard">Impresion estandar</option>
-                    <option value="hd">Impresion HD</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="rounded-md border border-border bg-muted/40 p-3">
-                <p className="text-sm font-semibold">Esquinas</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold">Forma de esquina</p>
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    ["square", "Cuadradas"],
-                    ["rounded", "Redondeadas"],
-                  ].map(([value, label]) => (
+                    ["square", "Cuadrada", "0"],
+                    ["rounded", "Redondeada", "+ ARS 250"],
+                  ].map(([value, label, price]) => (
                     <button
+                      aria-pressed={productOptions.corners === value}
                       className={cn(
-                        "rounded-md border p-3 text-sm",
+                        "grid min-h-20 gap-2 rounded-md border p-2 text-left text-sm",
                         productOptions.corners === value
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-surface hover:bg-muted",
@@ -480,56 +504,348 @@ export function PersonalizationEditor({
                       }
                       type="button"
                     >
+                      <span
+                        className={cn(
+                          "h-8 w-10 border border-border bg-white",
+                          value === "rounded" && "rounded-xl",
+                        )}
+                      />
+                      <span className="font-medium">{label}</span>
+                      <span className="text-xs text-muted-foreground">{price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold">Tipo de papel</p>
+                  <button
+                    className="text-xs font-medium text-primary hover:underline"
+                    type="button"
+                  >
+                    Comparacion
+                  </button>
+                </div>
+                <div className="grid gap-2">
+                  {[
+                    ["mate", "Mate Signatura", "Incluido", "bg-[#f5f1e8]"],
+                    ["premium", "Premium texturado", "+ ARS 550", "bg-[#e6e0d3]"],
+                  ].map(([value, label, price, swatchClass]) => (
+                    <button
+                      aria-pressed={productOptions.paper === value}
+                      className={cn(
+                        "flex min-h-14 items-center gap-3 rounded-md border p-2 text-left text-sm",
+                        productOptions.paper === value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-surface hover:bg-muted",
+                      )}
+                      key={value}
+                      onClick={() =>
+                        updateProductOption(
+                          "paper",
+                          value as ProductOptions["paper"],
+                        )
+                      }
+                      type="button"
+                    >
+                      <span
+                        className={cn(
+                          "size-9 shrink-0 rounded border border-border",
+                          swatchClass,
+                        )}
+                      />
+                      <span className="grid flex-1">
+                        <span className="font-medium">{label}</span>
+                        <span className="text-xs text-muted-foreground">{price}</span>
+                      </span>
+                      {productOptions.paper === value ? (
+                        <Check className="size-4" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold">Proceso de impresion</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["standard", "Estandar", "Incluido"],
+                    ["hd", "HD", "+ ARS 450"],
+                  ].map(([value, label, price]) => (
+                    <button
+                      aria-pressed={productOptions.print === value}
+                      className={cn(
+                        "rounded-md border p-3 text-left text-sm",
+                        productOptions.print === value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-surface hover:bg-muted",
+                      )}
+                      key={value}
+                      onClick={() =>
+                        updateProductOption(
+                          "print",
+                          value as ProductOptions["print"],
+                        )
+                      }
+                      type="button"
+                    >
+                      <span className="block font-medium">{label}</span>
+                      <span className="text-xs text-muted-foreground">{price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold">Sobres</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["white", "Blanco"],
+                    ["none", "Ninguno"],
+                  ].map(([value, label]) => (
+                    <button
+                      aria-pressed={productOptions.envelopes === value}
+                      className={cn(
+                        "rounded-md border p-3 text-sm",
+                        productOptions.envelopes === value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-surface hover:bg-muted",
+                      )}
+                      key={value}
+                      onClick={() =>
+                        updateProductOption(
+                          "envelopes",
+                          value as ProductOptions["envelopes"],
+                        )
+                      }
+                      type="button"
+                    >
                       {label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold">Atribucion</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["remove", "Quitar logotipo"],
+                    ["add", "Anadir logotipo"],
+                  ].map(([value, label]) => (
+                    <button
+                      aria-pressed={productOptions.attribution === value}
+                      className={cn(
+                        "rounded-md border p-3 text-sm",
+                        productOptions.attribution === value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-surface hover:bg-muted",
+                      )}
+                      key={value}
+                      onClick={() =>
+                        updateProductOption(
+                          "attribution",
+                          value as ProductOptions["attribution"],
+                        )
+                      }
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 z-10 -mx-5 -mb-5 grid gap-3 border-t border-border bg-white p-5 shadow-[0_-10px_24px_rgba(15,23,42,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <label
+                    className="text-sm font-semibold"
+                    htmlFor="product-quantity"
+                  >
+                    Cantidad
+                  </label>
+                  <Input
+                    className="h-10 w-24 text-center"
+                    id="product-quantity"
+                    min={1}
+                    onChange={(event) =>
+                      updateProductOption(
+                        "quantity",
+                        Math.max(1, Number(event.target.value) || 1),
+                      )
+                    }
+                    type="number"
+                    value={productOptions.quantity}
+                  />
+                </div>
+                <div className="grid gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Precio estimado
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      ARS {productOptions.quantity * 2490}
+                    </p>
+                  </div>
+                  <Button
+                    className="w-full justify-center"
+                    onClick={() => setActiveStep("review")}
+                    type="button"
+                  >
+                    Continuar a revisar
+                    <ChevronRight />
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : activeStep === "review" ? (
             <div className="grid gap-4">
-              <div className="rounded-md border border-primary/30 bg-primary/10 p-4">
-                <p className="text-sm font-semibold text-primary">
-                  Listo para revisar
-                </p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Confirma que los textos, tamano y opciones del producto esten
-                  correctos antes de continuar.
+              <div>
+                <h3 className="text-xl font-semibold">
+                  Aseguremonos de que este perfecto
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Revisa tu diseno antes de continuar.
                 </p>
               </div>
 
               <div className="grid gap-3 rounded-md border border-border p-4 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">Pieza</span>
-                  <span className="font-medium">{getTemplateLabel(template.id)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">Textos</span>
-                  <span className="font-medium">{scene.length}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">Formato</span>
-                  <span className="font-medium">
-                    {productOptions.format === "impreso" ? "Impreso" : "Digital"}
+                <div className="flex gap-3">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-success/15 text-success">
+                    <Check className="size-4" />
                   </span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">Papel</span>
-                  <span className="font-medium">
-                    {productOptions.paper === "mate" ? "Mate" : "Premium"}
-                  </span>
+                  <div>
+                    <h4 className="font-semibold">Cosas a revisar</h4>
+                    <ul className="mt-2 grid gap-2 text-muted-foreground">
+                      <li>Revisa nombres, fechas, hora y lugar.</li>
+                      <li>Verifica que los textos sean claramente visibles.</li>
+                      <li>Confirma que no queden textos de muestra.</li>
+                      <li>Revisa todas las piezas del set antes de descargar.</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                <Button onClick={() => setActiveStep("design")} type="button" variant="secondary">
+              {sampleTextElements.length > 0 ? (
+                <div className="grid gap-3 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
+                  <div className="flex gap-3">
+                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-warning/20 text-warning">
+                      <FileText className="size-4" />
+                    </span>
+                    <div>
+                      <h4 className="font-semibold">Contenido de muestra</h4>
+                      <p className="mt-1 text-muted-foreground">
+                        Estos textos parecen placeholders. Puedes volver a Diseno
+                        para editarlos antes de continuar.
+                      </p>
+                      <div className="mt-3 grid gap-2">
+                        {sampleTextElements.map((element) => (
+                          <button
+                            className="rounded-md border border-border bg-surface p-2 text-left text-xs hover:bg-muted"
+                            key={element.id}
+                            onClick={() => {
+                              setActiveStep("design");
+                              setActivePanel("edit");
+                              setSelectedElementId(element.id);
+                            }}
+                            type="button"
+                          >
+                            <span className="font-semibold">{element.label}: </span>
+                            <span className="text-muted-foreground">
+                              {element.text}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 rounded-md border border-border p-4 text-sm">
+                <div className="flex gap-3">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                    <SlidersHorizontal className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-semibold">Tus opciones seleccionadas</h4>
+                    <ul className="mt-3 grid gap-2 text-muted-foreground">
+                      <li>Formato: {getFormatLabel(productOptions.format)}</li>
+                      <li>Tamano: {getSizeLabel(productOptions.size)}</li>
+                      <li>
+                        Forma de esquina: {getCornersLabel(productOptions.corners)}
+                      </li>
+                      <li>Tipo de papel: {getPaperLabel(productOptions.paper)}</li>
+                      <li>
+                        Proceso de impresion: {getPrintLabel(productOptions.print)}
+                      </li>
+                      <li>
+                        Sobres:{" "}
+                        {productOptions.envelopes === "white" ? "Blanco" : "Ninguno"}
+                      </li>
+                      <li>
+                        Atribucion:{" "}
+                        {productOptions.attribution === "remove"
+                          ? "Quitar logotipo"
+                          : "Anadir logotipo"}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 rounded-md border border-border p-4 text-sm">
+                <h4 className="font-semibold">Resumen del set</h4>
+                <div className="grid gap-2">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Pieza actual</span>
+                    <span className="font-medium">{getTemplateLabel(template.id)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Textos editables</span>
+                    <span className="font-medium">{scene.length}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Cantidad</span>
+                    <span className="font-medium">{productOptions.quantity}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 z-10 -mx-5 -mb-5 grid gap-3 border-t border-border bg-white p-5 shadow-[0_-10px_24px_rgba(15,23,42,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <strong>Subtotal</strong>
+                  <div className="text-right">
+                    <p className="text-xl font-semibold">ARS {estimatedTotal}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ARS 2490 por set
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => setActiveStep("options")}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Opciones
+                  </Button>
+                  <Button onClick={onContinue} type="button">
+                    Confirmar
+                    <ChevronRight />
+                  </Button>
+                </div>
+                <Button
+                  onClick={() => {
+                    setActiveStep("design");
+                    setActivePanel("edit");
+                  }}
+                  type="button"
+                  variant="ghost"
+                >
                   Volver a diseno
-                </Button>
-                <Button onClick={() => setActiveStep("options")} type="button" variant="secondary">
-                  Revisar opciones
-                </Button>
-                <Button onClick={onContinue} type="button">
-                  Confirmar y continuar
                 </Button>
               </div>
             </div>
@@ -734,6 +1050,7 @@ export function PersonalizationEditor({
                     updateSelectedElement({
                       fontFamily: event.target.value,
                       pdfFont: option?.pdfFont,
+                      fontAsset: option?.fontAsset,
                     });
                   }}
                   value={selectedElement.fontFamily}
@@ -994,6 +1311,7 @@ export function PersonalizationEditor({
                     updateSelectedElement({
                       fontFamily: event.target.value,
                       pdfFont: option?.pdfFont,
+                      fontAsset: option?.fontAsset,
                     });
                   }}
                   value={selectedElement.fontFamily}

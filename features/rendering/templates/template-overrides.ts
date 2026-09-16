@@ -27,6 +27,7 @@ export function applyFieldOverride(
     width: override.width ?? field.width,
     fontFamily: override.fontFamily ?? field.fontFamily,
     pdfFont: override.pdfFont ?? field.pdfFont,
+    fontAsset: override.fontAsset ?? field.fontAsset,
     fontWeight: override.fontWeight ?? field.fontWeight,
     fontSize: override.fontSize ?? field.fontSize,
     fill: override.fill ?? field.fill,

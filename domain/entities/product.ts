@@ -8,6 +8,12 @@ export type Product = {
   id: string;
   slug: string;
   collectionId: string;
+  collectionSlug: string;
+  collectionName: string;
+  collectionPieceId: string;
+  pieceTypeId: string;
+  pieceTypeName: string;
+  printProfileId: string;
   name: string;
   description: string;
   access: ProductAccess;

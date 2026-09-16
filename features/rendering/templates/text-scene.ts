@@ -57,6 +57,7 @@ export function getTextSceneConstraints(
         template.textConstraints?.defaults?.fontFamily ??
         "Arial, Helvetica, sans-serif",
       pdfFont: template.textConstraints?.defaults?.pdfFont ?? "helvetica",
+      fontAsset: template.textConstraints?.defaults?.fontAsset,
       fontWeight: template.textConstraints?.defaults?.fontWeight ?? 500,
       fontSize: template.textConstraints?.defaults?.fontSize ?? 120,
       minFontSize: template.textConstraints?.defaults?.minFontSize ?? 32,
@@ -87,6 +88,7 @@ export function createTextSceneFromTemplate(
         width: field.width,
         fontFamily: field.fontFamily,
         pdfFont: field.pdfFont,
+        fontAsset: field.fontAsset,
         fontWeight: field.fontWeight,
         fontSize: field.fontSize,
         minFontSize: field.minFontSize,

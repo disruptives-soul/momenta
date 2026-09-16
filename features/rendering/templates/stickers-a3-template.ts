@@ -24,6 +24,14 @@ export const stickersA3Template: InvitationTemplate = {
   productCode: "stickers-pack",
   widthMm: 297,
   heightMm: 420,
+  printProfile: {
+    id: "stickers-a3-portrait",
+    widthMm: 297,
+    heightMm: 420,
+    label: "Stickers A3 vertical",
+    instructionsKey: "stickers-a3",
+    expectedPpi: 300,
+  },
   widthPx: 3509,
   heightPx: 4961,
   master: {

@@ -1,4 +1,10 @@
 export type TemplateTextAlign = "left" | "center" | "right";
+export type TemplatePdfFont = "helvetica" | "times-roman";
+
+export type TemplateFontAsset = {
+  regular: string;
+  bold?: string;
+};
 
 export type TemplateTextCopy = {
   x: number;
@@ -31,7 +37,8 @@ export type TemplateTextField = {
   width: number;
   copies?: TemplateTextCopy[];
   fontFamily: string;
-  pdfFont?: "helvetica" | "times-roman";
+  pdfFont?: TemplatePdfFont;
+  fontAsset?: TemplateFontAsset;
   fontWeight?: number;
   fontSize: number;
   minFontSize: number;
@@ -53,7 +60,8 @@ export type TextElement = {
   y: number;
   width: number;
   fontFamily: string;
-  pdfFont?: "helvetica" | "times-roman";
+  pdfFont?: TemplatePdfFont;
+  fontAsset?: TemplateFontAsset;
   fontWeight?: number;
   fontSize: number;
   minFontSize: number;
@@ -70,7 +78,8 @@ export type TextSceneConstraints = {
   allowedFonts: Array<{
     label: string;
     value: string;
-    pdfFont: "helvetica" | "times-roman";
+    pdfFont: TemplatePdfFont;
+    fontAsset?: TemplateFontAsset;
   }>;
   allowedColors: string[];
   minFontSize: number;
@@ -85,6 +94,7 @@ export type TextSceneConstraints = {
     TextElement,
     | "fontFamily"
     | "pdfFont"
+    | "fontAsset"
     | "fontWeight"
     | "fontSize"
     | "minFontSize"
@@ -97,12 +107,33 @@ export type TextSceneConstraints = {
   >;
 };
 
+export type TemplatePrintProfile = {
+  id: string;
+  widthMm: number;
+  heightMm: number;
+  label: string;
+  instructionsKey: string;
+  expectedPpi: number;
+  ppiTolerance?: number;
+};
+
+export type TemplatePrintDiagnostics = {
+  effectivePpiX: number;
+  effectivePpiY: number;
+  effectivePpi: number;
+  metadataPpi?: number;
+  expectedWidthPx: number;
+  expectedHeightPx: number;
+  warnings: string[];
+};
+
 export type InvitationTemplate = {
   id: string;
   collectionSlug: string;
   productCode: string;
   widthMm: number;
   heightMm: number;
+  printProfile: TemplatePrintProfile;
   widthPx?: number;
   heightPx?: number;
   masterPpi?: number;
@@ -126,4 +157,5 @@ export type RuntimeInvitationTemplate = InvitationTemplate & {
   widthPx: number;
   heightPx: number;
   masterPpi?: number;
+  printDiagnostics: TemplatePrintDiagnostics;
 };

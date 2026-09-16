@@ -1,5 +1,34 @@
 import type { Product } from "@/domain";
 
+export const pieceTypes = [
+  {
+    id: "invitation",
+    label: "Invitacion",
+    pluralLabel: "Invitaciones",
+  },
+  {
+    id: "stickers",
+    label: "Stickers",
+    pluralLabel: "Stickers",
+  },
+  {
+    id: "banner",
+    label: "Banner",
+    pluralLabel: "Banners",
+  },
+  {
+    id: "backing",
+    label: "Backing",
+    pluralLabel: "Backings",
+  },
+] as const;
+
+const spaceCollection = {
+  id: "col_space_birthday",
+  slug: "space-birthday",
+  name: "Space Birthday",
+} as const;
+
 export type PrototypeProduct = Product & {
   priceLabel?: string;
   prototype: {
@@ -38,7 +67,13 @@ const birthdayTextVariables: Product["variables"] = [
 export const spaceInvitationProduct: PrototypeProduct = {
   id: "prod_space_invitation",
   slug: "invitation",
-  collectionId: "col_space_birthday",
+  collectionId: spaceCollection.id,
+  collectionSlug: spaceCollection.slug,
+  collectionName: spaceCollection.name,
+  collectionPieceId: "piece_space_invitation",
+  pieceTypeId: "invitation",
+  pieceTypeName: "Invitacion",
+  printProfileId: "a3-portrait",
   name: "Invitacion A3",
   description:
     "Invitacion vertical gratuita para personalizar con los datos de la celebracion.",
@@ -109,7 +144,13 @@ export const spaceInvitationProduct: PrototypeProduct = {
 export const spaceStickersPackProduct: PrototypeProduct = {
   id: "prod_space_stickers_pack",
   slug: "stickers-pack",
-  collectionId: "col_space_birthday",
+  collectionId: spaceCollection.id,
+  collectionSlug: spaceCollection.slug,
+  collectionName: spaceCollection.name,
+  collectionPieceId: "piece_space_stickers_a3",
+  pieceTypeId: "stickers",
+  pieceTypeName: "Stickers",
+  printProfileId: "stickers-a3-portrait",
   name: "Stickers A3",
   description:
     "Lamina A3 con 12 stickers circulares coordinados con Sunday in Bloom.",
@@ -139,7 +180,13 @@ export const spaceStickersPackProduct: PrototypeProduct = {
 export const spaceBannerProduct: PrototypeProduct = {
   id: "prod_space_banner",
   slug: "banner",
-  collectionId: "col_space_birthday",
+  collectionId: spaceCollection.id,
+  collectionSlug: spaceCollection.slug,
+  collectionName: spaceCollection.name,
+  collectionPieceId: "piece_space_banner_2x1",
+  pieceTypeId: "banner",
+  pieceTypeName: "Banner",
+  printProfileId: "banner-2x1-landscape",
   name: "Banner 2 x 1 m",
   description:
     "Banner horizontal coordinado para ambientar la mesa o fondo de cumpleanos.",
@@ -169,7 +216,13 @@ export const spaceBannerProduct: PrototypeProduct = {
 export const spaceBackingProduct: PrototypeProduct = {
   id: "prod_space_backing",
   slug: "backing",
-  collectionId: "col_space_birthday",
+  collectionId: spaceCollection.id,
+  collectionSlug: spaceCollection.slug,
+  collectionName: spaceCollection.name,
+  collectionPieceId: "piece_space_backing_1x1",
+  pieceTypeId: "backing",
+  pieceTypeName: "Backing",
+  printProfileId: "backing-1x1-square",
   name: "Backing 1 x 1 m",
   description:
     "Backing cuadrado para fondo decorativo, fotos o mesa principal.",

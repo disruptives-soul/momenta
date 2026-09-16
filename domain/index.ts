@@ -1,5 +1,11 @@
 export type { Asset, AssetKind } from "./entities/asset";
-export type { Collection, CollectionStatus } from "./entities/collection";
+export type {
+  Collection,
+  CollectionPiece,
+  CollectionPieceStatus,
+  CollectionStatus,
+  PieceType,
+} from "./entities/collection";
 export type {
   GeneratedFile,
   GeneratedFileFormat,

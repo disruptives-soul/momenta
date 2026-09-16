@@ -6,6 +6,14 @@ export const spaceBirthdayInvitationTemplate: InvitationTemplate = {
   productCode: "essential-invitation",
   widthMm: 297,
   heightMm: 420,
+  printProfile: {
+    id: "a3-portrait",
+    widthMm: 297,
+    heightMm: 420,
+    label: "A3 vertical",
+    instructionsKey: "a3-standard",
+    expectedPpi: 300,
+  },
   // Cached for the browser preview. The server renderer derives these values
   // from master.jpg with sharp().metadata().
   widthPx: 3509,

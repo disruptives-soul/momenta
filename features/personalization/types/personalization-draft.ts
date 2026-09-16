@@ -1,6 +1,10 @@
 import { spaceBirthdayInvitationTemplate } from "@/features/rendering/templates/space-birthday-invitation-template";
 import { createTextSceneFromTemplate } from "@/features/rendering/templates/text-scene";
-import type { TextElement } from "@/features/rendering/templates/template-types";
+import type {
+  TemplateFontAsset,
+  TemplatePdfFont,
+  TextElement,
+} from "@/features/rendering/templates/template-types";
 
 export const demoPersonalizationProjectId = "demo-space-birthday";
 
@@ -14,7 +18,8 @@ export type PersonalizationLayoutOverride = {
   y?: number;
   width?: number;
   fontFamily?: string;
-  pdfFont?: "helvetica" | "times-roman";
+  pdfFont?: TemplatePdfFont;
+  fontAsset?: TemplateFontAsset;
   fontWeight?: number;
   fontSize?: number;
   fill?: string;

@@ -18,6 +18,7 @@ dist/
 pnpm-debug.log*
 dev.stdout.log
 dev.stderr.log
+tmp/
 
 # system
 .DS_Store

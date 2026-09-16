@@ -129,10 +129,11 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
 
         <section>
           <div className="mb-5">
-            <h2 className="text-2xl font-semibold">Productos de la coleccion</h2>
+            <h2 className="text-2xl font-semibold">Piezas de la familia</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Estas son las piezas reales disponibles desde los assets cargados
-              para esta coleccion.
+              Cada pieza se puede comprar de forma independiente. La coleccion
+              funciona como sistema visual para combinar invitacion, stickers,
+              banner y backing.
             </p>
           </div>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

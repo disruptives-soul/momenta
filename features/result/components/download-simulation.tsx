@@ -10,12 +10,17 @@ import { ErrorState } from "@/components/ui/status-state";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
 import { loadPersonalizationDraft } from "@/features/personalization/services/personalization-draft-storage";
 import {
+  createInitialPersonalizationDraft,
   demoPersonalizationProjectId,
   getDraftTemplateLayout,
   getDraftTemplateScene,
   type PersonalizationDraft,
 } from "@/features/personalization/types/personalization-draft";
-import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
+import {
+  getRenderingTemplate,
+  renderingTemplates,
+} from "@/features/rendering/templates/template-registry";
+import { createTextSceneFromTemplate } from "@/features/rendering/templates/text-scene";
 import {
   hasCompletePrototypeDraft,
   isValidPrototypeProject,
@@ -29,7 +34,9 @@ type DownloadSimulationProps = {
 };
 
 export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
-  const [draft] = useState<PersonalizationDraft>(loadPersonalizationDraft);
+  const [draft, setDraft] = useState<PersonalizationDraft>(
+    createInitialPersonalizationDraft,
+  );
   const [downloadState, setDownloadState] =
     useState<PrototypeDownloadState>("available");
   const isValidProject = isValidPrototypeProject(projectId);
@@ -37,6 +44,17 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
   const template = getRenderingTemplate(draft.templateId);
   const activeLayout = template ? getDraftTemplateLayout(draft, template.id) : {};
   const activeScene = template ? getDraftTemplateScene(draft, template.id) : [];
+  const downloadableTemplates = [...renderingTemplates].sort((left, right) => {
+    if (left.id === draft.templateId) return -1;
+    if (right.id === draft.templateId) return 1;
+    return 0;
+  });
+
+  useEffect(() => {
+    window.queueMicrotask(() => {
+      setDraft(loadPersonalizationDraft());
+    });
+  }, []);
 
   useEffect(() => {
     if (isValidProject && isComplete) {
@@ -88,11 +106,13 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          templateId: activeTemplate.id,
           format: "pdf",
-          data: draft.values,
-          layout: activeLayout,
-          scene: activeScene,
+          templates: downloadableTemplates.map((item) => ({
+            templateId: item.id,
+            data: draft.valuesByTemplate[item.id] ?? draft.values,
+            layout: getDraftTemplateLayout(draft, item.id),
+            scene: draft.scenes[item.id] ?? createTextSceneFromTemplate(item),
+          })),
         }),
       });
 
@@ -105,7 +125,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
       const link = document.createElement("a");
 
       link.href = downloadUrl;
-      link.download = `${activeTemplate.id}.pdf`;
+      link.download = "momenta-space-birthday-templates.pdf";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -134,10 +154,11 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
           <div>
             <Badge tone="free">Free</Badge>
             <h1 className="mt-3 text-3xl font-semibold md:text-5xl">
-              Tu invitación está lista
+              Tus plantillas estan listas
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Esta descarga genera un PDF personalizado desde el template local.
+              Esta descarga genera un PDF multipagina con todas las plantillas
+              personalizadas.
             </p>
           </div>
 
@@ -148,7 +169,9 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             </div>
             <div>
               <p className="text-muted-foreground">Producto</p>
-              <p className="font-semibold">Invitación esencial</p>
+              <p className="font-semibold">
+                {downloadableTemplates.length} plantillas personalizadas
+              </p>
             </div>
             <div>
               <p className="text-muted-foreground">Formatos</p>
@@ -164,8 +187,8 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             >
               <Download aria-hidden="true" />
               {downloadState === "downloading"
-                ? "Renderizando invitación"
-                : "Descargar invitación"}
+                ? "Renderizando plantillas"
+                : "Descargar plantillas"}
             </Button>
             <Button asChild variant="secondary">
               <Link href={`/projects/${demoPersonalizationProjectId}/preview`}>
@@ -176,13 +199,13 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
 
           {downloadState === "completed" ? (
             <p className="rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
-              Descarga generada: momenta-space-birthday-invitation.pdf
+              Descarga generada: momenta-space-birthday-templates.pdf
             </p>
           ) : null}
 
           {downloadState === "failed" ? (
             <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-              No pudimos generar la invitación. Revisá los datos o intentá
+              No pudimos generar las plantillas. Revisa los datos o intenta
               nuevamente.
             </p>
           ) : null}

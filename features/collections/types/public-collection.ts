@@ -1,4 +1,4 @@
-import type { Product } from "@/domain";
+import type { CollectionPiece, Product } from "@/domain";
 
 export type PublicCollection = {
   id: string;
@@ -9,6 +9,7 @@ export type PublicCollection = {
   categoryName: string;
   status: "draft" | "published" | "archived";
   tags: string[];
+  pieces: CollectionPiece[];
   products: Product[];
   prototype?: {
     assets: {

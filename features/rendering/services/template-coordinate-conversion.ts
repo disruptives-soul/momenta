@@ -6,8 +6,8 @@ export function mmToPt(mm: number) {
 
 export function getPdfPageSize(template: RuntimeInvitationTemplate) {
   return {
-    widthPt: mmToPt(template.widthMm),
-    heightPt: mmToPt(template.heightMm),
+    widthPt: mmToPt(template.printProfile.widthMm),
+    heightPt: mmToPt(template.printProfile.heightMm),
   };
 }
 

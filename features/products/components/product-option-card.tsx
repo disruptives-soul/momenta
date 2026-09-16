@@ -32,6 +32,10 @@ export function ProductOptionCard({ product }: ProductOptionCardProps) {
           <Badge tone={isPremium ? "premium" : "free"}>
             {isPremium ? "Premium" : "Free"}
           </Badge>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge tone="neutral">{product.pieceTypeName}</Badge>
+            <Badge tone="neutral">{product.collectionName}</Badge>
+          </div>
           <h3 className="mt-3 text-2xl font-semibold">{product.name}</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {product.description}

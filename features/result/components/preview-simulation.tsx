@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/ui/status-state";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
 import { loadPersonalizationDraft } from "@/features/personalization/services/personalization-draft-storage";
 import {
+  createInitialPersonalizationDraft,
   demoPersonalizationProjectId,
   getDraftTemplateLayout,
   type PersonalizationDraft,
@@ -47,7 +48,9 @@ export function PreviewSimulation({
 }: PreviewSimulationProps) {
   const router = useRouter();
   const previewRef = useRef<HTMLDivElement>(null);
-  const [draft] = useState<PersonalizationDraft>(loadPersonalizationDraft);
+  const [draft, setDraft] = useState<PersonalizationDraft>(
+    createInitialPersonalizationDraft,
+  );
   const [state, setState] = useState<PrototypeGenerationState>("generating");
   const [messageIndex, setMessageIndex] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -60,7 +63,13 @@ export function PreviewSimulation({
       if (left.id === draft.templateId) return -1;
       if (right.id === draft.templateId) return 1;
       return 0;
+  });
+
+  useEffect(() => {
+    window.queueMicrotask(() => {
+      setDraft(loadPersonalizationDraft());
     });
+  }, []);
 
   useEffect(() => {
     if (!isValidProject || !isComplete) {

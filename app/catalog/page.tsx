@@ -7,8 +7,8 @@ import { activePilotCategory } from "@/features/catalog/data/mock-categories";
 import { listPublicCollections } from "@/features/collections/services/list-public-collections";
 
 export const metadata = {
-  title: "Catálogo",
-  description: "Explora colecciones imprimibles de Momenta.",
+  title: "Catalogo",
+  description: "Explora productos imprimibles de Momenta por tipo de pieza.",
 };
 
 export default async function CatalogPage() {
@@ -19,13 +19,13 @@ export default async function CatalogPage() {
       actions={
         <Button asChild variant="secondary">
           <Link href={`/categories/${activePilotCategory.slug}`}>
-            Ver Cumpleaños infantiles
+            Ver Cumpleanos infantiles
           </Link>
         </Button>
       }
-      description="Explorá colecciones imprimibles listas para personalizar."
-      eyebrow="Catálogo"
-      title="Colecciones para imprimir"
+      description="Explora productos comprables por tipo de pieza. Cada pieza pertenece a una coleccion visual, pero se puede comprar de forma independiente."
+      eyebrow="Catalogo"
+      title="Productos para imprimir"
     >
       <DiscoveryEvent name="catalog_viewed" />
       <CatalogDiscovery collections={collections} />

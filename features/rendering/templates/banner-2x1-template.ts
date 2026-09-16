@@ -6,6 +6,14 @@ export const banner2x1Template: InvitationTemplate = {
   productCode: "banner-2x1",
   widthMm: 2000,
   heightMm: 1000,
+  printProfile: {
+    id: "banner-2x1-landscape",
+    widthMm: 2000,
+    heightMm: 1000,
+    label: "Banner 2 x 1 m",
+    instructionsKey: "large-format-banner",
+    expectedPpi: 150,
+  },
   widthPx: 11812,
   heightPx: 5906,
   master: {
