@@ -94,3 +94,54 @@ A3 at 300 PPI          -> 3508 x 4961 px
 Banner 2 x 1 m at 150 -> 11811 x 5906 px
 Backing 1 x 1 m at 150 -> 5906 x 5906 px
 ```
+
+## File naming
+
+Product PDFs use:
+
+```text
+{collection}-{piece}-{size}.pdf
+```
+
+Examples:
+
+```text
+space-birthday-invitation-a3.pdf
+space-birthday-stickers-a3.pdf
+space-birthday-banner-2x1m.pdf
+space-birthday-backing-1x1m.pdf
+```
+
+Rules:
+
+- lowercase
+- no spaces
+- no accents
+- hyphen-separated
+- no child/person name in the filename
+
+ZIP naming:
+
+```text
+momenta-space-birthday.zip
+momenta-files-{shortId}.zip
+momenta-order-{shortOrderId}.zip
+```
+
+Use the collection ZIP name only when all products belong to the same
+collection. Mixed-collection carts should use the generic files/order naming.
+
+## Print Output gate
+
+Do not mark the renderer as production-approved until all checks are green:
+
+```text
+[ ] Real fonts embedded
+[ ] Preview approximately matches PDF
+[ ] Master color approximately matches PDF A in Acrobat
+[ ] A3 physical print is correct at 100%
+[ ] Naming convention is confirmed
+[ ] ZIP contains one PDF per Product
+```
+
+Only after this gate should MOMENTA move to Calibration Mode and R2 storage.

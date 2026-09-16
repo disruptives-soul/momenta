@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
@@ -52,12 +53,54 @@ function getRenderFormat(request: Request, body: RenderRequestBody): RenderForma
   return null;
 }
 
-function getFileName(template: InvitationTemplate, format: RenderFormat) {
-  return `${template.id}.${format}`;
+function getPieceFileSlug(template: InvitationTemplate) {
+  if (template.productCode === "essential-invitation") return "invitation";
+  if (template.productCode === "stickers-pack") return "stickers";
+  if (template.productCode.includes("banner")) return "banner";
+  if (template.productCode.includes("backing")) return "backing";
+
+  return template.productCode;
+}
+
+function getPrintSizeSlug(template: InvitationTemplate) {
+  if (template.printProfile.id.includes("a3")) return "a3";
+  if (template.printProfile.id.includes("2x1")) return "2x1m";
+  if (template.printProfile.id.includes("1x1")) return "1x1m";
+
+  return template.printProfile.id;
 }
 
 function getProductPdfFileName(template: InvitationTemplate) {
-  return `${template.collectionSlug}-${template.productCode}.pdf`;
+  return [
+    template.collectionSlug,
+    getPieceFileSlug(template),
+    getPrintSizeSlug(template),
+  ].join("-") + ".pdf";
+}
+
+function getFileName(template: InvitationTemplate, format: RenderFormat) {
+  if (format === "pdf") {
+    return getProductPdfFileName(template);
+  }
+
+  return `${template.id}.${format}`;
+}
+
+function getProductsZipFileName(templates: InvitationTemplate[]) {
+  const collectionSlugs = new Set(
+    templates.map((template) => template.collectionSlug),
+  );
+
+  if (collectionSlugs.size === 1) {
+    return `momenta-${templates[0].collectionSlug}.zip`;
+  }
+
+  const shortId = createHash("sha1")
+    .update(templates.map((template) => template.id).sort().join("|"))
+    .digest("hex")
+    .slice(0, 8);
+
+  return `momenta-files-${shortId}.zip`;
 }
 
 function normalizeData(data: RenderRequestBody["data"]): PersonalizationValues {
@@ -182,21 +225,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const validTemplates = templates.filter((item) => item !== null);
+
     let zip: Uint8Array;
 
     try {
       const pdfFiles = await Promise.all(
-        templates
-          .filter((item) => item !== null)
-          .map(async (item) => ({
-            name: getProductPdfFileName(item.template),
-            bytes: await renderPersonalizedInvitationPdf(
-              item.values,
-              item.template,
-              item.layout,
-              item.scene,
-            ),
-          })),
+        validTemplates.map(async (item) => ({
+          name: getProductPdfFileName(item.template),
+          bytes: await renderPersonalizedInvitationPdf(
+            item.values,
+            item.template,
+            item.layout,
+            item.scene,
+          ),
+        })),
       );
 
       zip = createZip(pdfFiles);
@@ -206,7 +249,7 @@ export async function POST(request: Request) {
 
     return renderNamedFileResponse(
       bytesToResponseBody(zip),
-      "momenta-space-birthday-products.zip",
+      getProductsZipFileName(validTemplates.map((item) => item.template)),
       "application/zip",
     );
   }

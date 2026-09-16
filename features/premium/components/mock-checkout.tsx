@@ -29,7 +29,7 @@ export function MockCheckout({ simulateError = false }: MockCheckoutProps) {
   function cancelCheckout() {
     setState("cancelled");
     trackValidationEvent("mock_checkout_cancelled", premiumEventPayload);
-    router.push("/collections/space-birthday/stickers-pack");
+    router.push("/products/stickers-pack");
   }
 
   function confirmIntent() {
@@ -57,7 +57,7 @@ export function MockCheckout({ simulateError = false }: MockCheckoutProps) {
               Intentar nuevamente
             </Button>
             <Button asChild variant="secondary">
-              <Link href="/collections/space-birthday/stickers-pack">
+              <Link href="/products/stickers-pack">
                 Volver al detalle
               </Link>
             </Button>

@@ -16,11 +16,8 @@ import {
   getDraftTemplateScene,
   type PersonalizationDraft,
 } from "@/features/personalization/types/personalization-draft";
-import {
-  getRenderingTemplate,
-  renderingTemplates,
-} from "@/features/rendering/templates/template-registry";
-import { createTextSceneFromTemplate } from "@/features/rendering/templates/text-scene";
+import { getProductForRenderingTemplate } from "@/features/products/services/product-catalog";
+import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
 import {
   hasCompletePrototypeDraft,
   isValidPrototypeProject,
@@ -33,6 +30,31 @@ type DownloadSimulationProps = {
   projectId: string;
 };
 
+function getDownloadFileName(response: Response) {
+  const disposition = response.headers.get("Content-Disposition");
+  const match = disposition?.match(/filename="(?<fileName>[^"]+)"/);
+
+  return match?.groups?.fileName ?? "momenta-product.pdf";
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = downloadUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  link.style.display = "none";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(downloadUrl);
+  }, 30_000);
+}
+
 export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
   const [draft, setDraft] = useState<PersonalizationDraft>(
     createInitialPersonalizationDraft,
@@ -42,13 +64,12 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
   const isValidProject = isValidPrototypeProject(projectId);
   const isComplete = hasCompletePrototypeDraft(draft);
   const template = getRenderingTemplate(draft.templateId);
+  const product = template ? getProductForRenderingTemplate(template) : null;
   const activeLayout = template ? getDraftTemplateLayout(draft, template.id) : {};
   const activeScene = template ? getDraftTemplateScene(draft, template.id) : [];
-  const downloadableTemplates = [...renderingTemplates].sort((left, right) => {
-    if (left.id === draft.templateId) return -1;
-    if (right.id === draft.templateId) return 1;
-    return 0;
-  });
+  const editHref = product
+    ? `/products/${product.slug}/personalize`
+    : "/products/invitation/personalize";
 
   useEffect(() => {
     window.queueMicrotask(() => {
@@ -68,7 +89,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
       <ErrorState
         action={
           <Button asChild>
-            <Link href="/collections/space-birthday">Volver a Space Birthday</Link>
+            <Link href="/catalog">Volver al catalogo</Link>
           </Button>
         }
         description="No encontramos una invitación disponible para descargar."
@@ -82,7 +103,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
       <ErrorState
         action={
           <Button asChild>
-            <Link href="/collections/space-birthday/personalize">
+            <Link href={editHref}>
               Volver al editor
             </Link>
           </Button>
@@ -107,12 +128,10 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
         },
         body: JSON.stringify({
           format: "pdf",
-          templates: downloadableTemplates.map((item) => ({
-            templateId: item.id,
-            data: draft.valuesByTemplate[item.id] ?? draft.values,
-            layout: getDraftTemplateLayout(draft, item.id),
-            scene: draft.scenes[item.id] ?? createTextSceneFromTemplate(item),
-          })),
+          templateId: activeTemplate.id,
+          data: draft.valuesByTemplate[activeTemplate.id] ?? draft.values,
+          layout: getDraftTemplateLayout(draft, activeTemplate.id),
+          scene: draft.scenes[activeTemplate.id],
         }),
       });
 
@@ -121,15 +140,14 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
 
-      link.href = downloadUrl;
-      link.download = "momenta-space-birthday-products.zip";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      if (!blob.size) {
+        throw new Error("Empty PDF.");
+      }
+
+      const fileName = getDownloadFileName(response);
+
+      downloadBlob(blob, fileName);
 
       setDownloadState("completed");
       trackValidationEvent("download_simulated", resultEventPayload);
@@ -154,10 +172,10 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
           <div>
             <Badge tone="free">Free</Badge>
             <h1 className="mt-3 text-3xl font-semibold md:text-5xl">
-              Tus productos estan listos
+              Tu producto esta listo
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Esta descarga genera un ZIP con un PDF independiente por producto.
+              Esta linea representa el producto con su personalizacion concreta.
             </p>
           </div>
 
@@ -168,9 +186,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             </div>
             <div>
               <p className="text-muted-foreground">Producto</p>
-              <p className="font-semibold">
-                {downloadableTemplates.length} productos personalizados
-              </p>
+              <p className="font-semibold">{product?.name ?? "Producto"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Formatos</p>
@@ -186,8 +202,8 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             >
               <Download aria-hidden="true" />
               {downloadState === "downloading"
-                ? "Renderizando productos"
-                : "Descargar ZIP"}
+                ? "Renderizando producto"
+                : "Descargar PDF"}
             </Button>
             <Button asChild variant="secondary">
               <Link href={`/projects/${demoPersonalizationProjectId}/preview`}>
@@ -198,13 +214,13 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
 
           {downloadState === "completed" ? (
             <p className="rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
-              Descarga generada: momenta-space-birthday-products.zip
+              Descarga generada.
             </p>
           ) : null}
 
           {downloadState === "failed" ? (
             <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-              No pudimos generar los productos. Revisa los datos o intenta
+              No pudimos generar el producto. Revisa los datos o intenta
               nuevamente.
             </p>
           ) : null}
@@ -226,7 +242,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
           </div>
           <Button asChild variant="secondary">
             <Link
-              href="/collections/space-birthday/stickers-pack"
+              href="/products/stickers-pack"
               onClick={() =>
                 trackValidationEvent("premium_upsell_clicked", resultEventPayload)
               }

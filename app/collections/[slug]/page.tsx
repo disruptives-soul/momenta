@@ -82,9 +82,9 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
                   <EventLink
                     eventName="free_product_selected"
                     eventPayload={{ product: "invitation" }}
-                    href="/collections/space-birthday/personalize"
+                    href="/products/invitation"
                   >
-                    Personalizar gratis
+                    Ver invitacion
                     <ArrowRight aria-hidden="true" />
                   </EventLink>
                 </Button>
@@ -92,7 +92,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
                   <EventLink
                     eventName="premium_product_viewed"
                     eventPayload={{ product: "stickers-pack" }}
-                    href="/collections/space-birthday/stickers-pack"
+                    href="/products/stickers-pack"
                   >
                     Ver Stickers pack
                   </EventLink>
@@ -149,9 +149,9 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
               <EventLink
                 eventName="free_product_selected"
                 eventPayload={{ product: "invitation" }}
-                href="/collections/space-birthday/personalize"
+                href="/products/invitation"
               >
-                Iniciar personalizacion
+                Ver producto
               </EventLink>
             </Button>
           }

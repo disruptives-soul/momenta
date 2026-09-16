@@ -1,7 +1,4 @@
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { EventLink } from "@/features/analytics/components/event-link";
 import { cn } from "@/lib/utils";
 import type { PrototypeProduct } from "../data/mock-products";
@@ -11,76 +8,65 @@ type ProductOptionCardProps = {
 };
 
 const previewAspectClass = {
-  landscape: "aspect-[2/1]",
-  portrait: "aspect-[297/420]",
-  square: "aspect-square",
+  landscape: "aspect-[4/3]",
+  portrait: "aspect-[4/5]",
+  square: "aspect-[4/5]",
 } as const;
 
+function getPriceLabel(product: PrototypeProduct) {
+  if (product.priceLabel) {
+    return `Desde ${product.priceLabel.replace("ARS ", "$")}`;
+  }
+
+  return "Gratis";
+}
+
 export function ProductOptionCard({ product }: ProductOptionCardProps) {
-  const isPremium = product.access === "premium";
+  const eventName =
+    product.access === "premium" ? "premium_product_viewed" : "free_product_selected";
 
   return (
-    <Card
-      className={
-        isPremium
-          ? "grid gap-5 border-accent/40 bg-accent/10"
-          : "grid gap-5 border-primary/30 bg-primary/5"
-      }
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Badge tone={isPremium ? "premium" : "free"}>
-            {isPremium ? "Premium" : "Free"}
-          </Badge>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Badge tone="neutral">{product.pieceTypeName}</Badge>
-            <Badge tone="neutral">{product.collectionName}</Badge>
-          </div>
-          <h3 className="mt-3 text-2xl font-semibold">{product.name}</h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {product.description}
-          </p>
-        </div>
-        {product.priceLabel ? (
-          <p className="rounded-md bg-surface px-3 py-2 text-lg font-semibold shadow-sm">
-            {product.priceLabel}
-          </p>
-        ) : null}
-      </div>
-
-      <div
+    <article className="group overflow-hidden rounded-[1.35rem] bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <EventLink
         className={cn(
-          "relative overflow-hidden rounded-md border border-border bg-muted",
+          "relative block overflow-hidden rounded-[1rem] bg-muted",
           previewAspectClass[product.prototype.previewAspect],
         )}
+        eventName={eventName}
+        eventPayload={{ product: product.slug }}
+        href={product.prototype.href}
       >
         <Image
           alt={product.prototype.previewAlt}
-          className="object-cover"
+          className="object-cover transition duration-500 group-hover:scale-[1.03]"
           fill
-          sizes="(min-width: 1024px) 30vw, 90vw"
+          sizes="(min-width: 1280px) 18vw, (min-width: 768px) 28vw, 88vw"
           src={product.prototype.previewSrc}
         />
-      </div>
+        <div className="absolute left-3 top-3 rounded-full bg-white/86 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
+          {product.pieceTypeName}
+        </div>
+        <div className="absolute right-3 top-3 rounded-full bg-white/86 px-2.5 py-1 text-xs font-semibold text-muted-foreground shadow-sm">
+          {product.collectionName.replace(" Birthday", "")}
+        </div>
+      </EventLink>
 
-      <div>
-        <p className="text-sm font-medium">Incluye</p>
-        <ul className="mt-3 grid gap-2 text-sm text-muted-foreground">
-          {product.prototype.highlights.map((highlight) => (
-            <li key={highlight}>- {highlight}</li>
-          ))}
-        </ul>
-      </div>
-
-      <Button asChild variant={isPremium ? "secondary" : "primary"}>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1.5 pb-1.5 pt-3">
+        <div className="min-w-0">
+          <h3 className="truncate font-serif text-lg font-semibold leading-tight">
+            {product.name}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">{getPriceLabel(product)}</p>
+        </div>
         <EventLink
-          eventName={isPremium ? "premium_product_viewed" : "free_product_selected"}
+          className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+          eventName={eventName}
           eventPayload={{ product: product.slug }}
           href={product.prototype.href}
         >
-          {product.prototype.ctaLabel}
+          Personalizar
         </EventLink>
-      </Button>
-    </Card>
+      </div>
+    </article>
   );
 }

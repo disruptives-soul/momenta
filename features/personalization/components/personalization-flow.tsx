@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
+import {
+  getProductBySlug,
+  getRenderingTemplateForProduct,
+  listProducts,
+} from "@/features/products/services/product-catalog";
 import { renderingTemplates } from "@/features/rendering/templates/template-registry";
 import {
   createDefaultTextElement,
@@ -22,6 +27,8 @@ import {
   type PersonalizationValues,
 } from "../types/personalization-draft";
 import type { TextElement } from "@/features/rendering/templates/template-types";
+import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
+import type { PrototypeProduct } from "@/features/products/data/mock-products";
 
 const PersonalizationEditor = dynamic(
   () =>
@@ -51,6 +58,10 @@ type PersonalizationHistory = {
   }>;
 };
 
+type PersonalizationFlowProps = {
+  productSlug?: string;
+};
+
 function getTemplateDefaults(templateId: string): PersonalizationValues {
   const template =
     renderingTemplates.find((item) => item.id === templateId) ?? renderingTemplates[0];
@@ -63,19 +74,56 @@ function getTemplateDefaults(templateId: string): PersonalizationValues {
   );
 }
 
-export function PersonalizationFlow() {
+function scopeDraftToProduct(
+  draft: PersonalizationDraft,
+  product: PrototypeProduct,
+  template: InvitationTemplate,
+): PersonalizationDraft {
+  const templateValues =
+    draft.valuesByTemplate[template.id] ?? getTemplateDefaults(template.id);
+
+  return {
+    ...draft,
+    collectionSlug: product.collectionSlug as PersonalizationDraft["collectionSlug"],
+    productCode: product.slug,
+    templateId: template.id,
+    values: templateValues,
+    valuesByTemplate: {
+      ...draft.valuesByTemplate,
+      [template.id]: templateValues,
+    },
+    layouts: {
+      ...draft.layouts,
+      [template.id]: draft.layouts[template.id] ?? {},
+    },
+    scenes: {
+      ...draft.scenes,
+      [template.id]:
+        draft.scenes[template.id] ?? createTextSceneFromTemplate(template),
+    },
+  };
+}
+
+export function PersonalizationFlow({ productSlug = "invitation" }: PersonalizationFlowProps) {
   const router = useRouter();
+  const activeProduct =
+    getProductBySlug(productSlug) ?? getProductBySlug("invitation") ?? listProducts()[0];
+  const productTemplate =
+    getRenderingTemplateForProduct(activeProduct) ?? renderingTemplates[0];
   const [draft, setDraft] = useState<PersonalizationDraft>(
-    createInitialPersonalizationDraft,
+    () =>
+      scopeDraftToProduct(
+        createInitialPersonalizationDraft(),
+        activeProduct,
+        productTemplate,
+      ),
   );
   const [isHydrated, setIsHydrated] = useState(false);
   const [history, setHistory] = useState<PersonalizationHistory>({
     past: [],
     future: [],
   });
-  const activeTemplate =
-    renderingTemplates.find((template) => template.id === draft.templateId) ??
-    renderingTemplates[0];
+  const activeTemplate = productTemplate;
   const activeScene =
     draft.scenes[activeTemplate.id] ?? createTextSceneFromTemplate(activeTemplate);
   const activeConstraints = getTextSceneConstraints(activeTemplate);
@@ -88,14 +136,20 @@ export function PersonalizationFlow() {
         return;
       }
 
-      setDraft(loadPersonalizationDraft());
+      setDraft(
+        scopeDraftToProduct(
+          loadPersonalizationDraft(),
+          activeProduct,
+          activeTemplate,
+        ),
+      );
       setIsHydrated(true);
     });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeProduct, activeTemplate]);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -115,35 +169,6 @@ export function PersonalizationFlow() {
       productCode: draft.productCode,
     });
   }, [draft.collectionSlug, draft.productCode, isHydrated]);
-
-  function selectTemplate(templateId: string) {
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      templateId,
-      values:
-        currentDraft.valuesByTemplate[templateId] ??
-        getTemplateDefaults(templateId),
-      valuesByTemplate: {
-        ...currentDraft.valuesByTemplate,
-        [templateId]:
-          currentDraft.valuesByTemplate[templateId] ??
-          getTemplateDefaults(templateId),
-      },
-      layouts: {
-        ...currentDraft.layouts,
-        [templateId]: currentDraft.layouts[templateId] ?? {},
-      },
-      scenes: {
-        ...currentDraft.scenes,
-        [templateId]:
-          currentDraft.scenes[templateId] ??
-          createTextSceneFromTemplate(
-            renderingTemplates.find((item) => item.id === templateId) ??
-              renderingTemplates[0],
-          ),
-      },
-    }));
-  }
 
   function pushHistory() {
     setHistory((currentHistory) => ({
@@ -282,16 +307,12 @@ export function PersonalizationFlow() {
     }));
   }
 
-  function requestPreview() {
+  function continueToReview() {
     trackValidationEvent("personalization_completed", {
       collectionSlug: draft.collectionSlug,
       productCode: draft.productCode,
     });
-    trackValidationEvent("preview_requested", {
-      collectionSlug: draft.collectionSlug,
-      productCode: draft.productCode,
-    });
-    router.push(`/projects/${demoPersonalizationProjectId}/preview`);
+    router.push(`/projects/${demoPersonalizationProjectId}/review`);
   }
 
   return (
@@ -301,18 +322,17 @@ export function PersonalizationFlow() {
         canRedo={history.future.length > 0}
         canUndo={history.past.length > 0}
         constraints={activeConstraints}
+        exitHref={`/products/${activeProduct.slug}`}
         onAddTextElement={addTextElement}
-        onContinue={requestPreview}
+        onContinue={continueToReview}
         onDeleteTextElement={deleteTextElement}
         onDuplicateTextElement={duplicateTextElement}
         onRedo={redo}
         onReorderTextElement={reorderTextElement}
-        onTemplateChange={selectTemplate}
         onUndo={undo}
         onUpdateTextElement={updateTextElement}
         scene={activeScene}
         template={activeTemplate}
-        templates={renderingTemplates}
       />
     </div>
   );

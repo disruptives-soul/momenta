@@ -2,36 +2,37 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ShoppingBag } from "lucide-react";
 import { Container } from "./container";
 
 const navigation = [
-  { href: "/catalog", label: "Catálogo" },
-  { href: "/categories/childrens-birthdays", label: "Cumpleaños" },
-  { href: "/collections/space-birthday", label: "Space Birthday" },
+  { href: "/catalog?type=invitation", label: "Invitaciones" },
+  { href: "/catalog?type=banner", label: "Flyers" },
+  { href: "/catalog?type=stickers", label: "Stickers" },
+  { href: "/collections/space-birthday", label: "Temas" },
 ];
-
-const showDebugShortcut = process.env.NEXT_PUBLIC_MOMENTA_DEBUG_NAV === "1";
 
 export function SiteHeader() {
   const pathname = usePathname();
 
-  if (pathname === "/collections/space-birthday/personalize") {
+  if (
+    pathname === "/collections/space-birthday/personalize" ||
+    (pathname.startsWith("/products/") && pathname.endsWith("/personalize"))
+  ) {
     return null;
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/92 backdrop-blur">
-      <Container className="flex min-h-16 items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 border-b border-white/70 bg-surface/86 backdrop-blur-xl">
+      <Container className="flex min-h-14 items-center justify-between gap-4">
         <Link className="inline-flex items-center gap-2 font-semibold" href="/">
-          <span className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
-            <Sparkles aria-hidden="true" className="size-4" />
+          <span className="grid size-7 place-items-center rounded-full bg-foreground text-xs font-semibold text-primary-foreground">
+            M
           </span>
           <span>Momenta</span>
         </Link>
 
-        <nav aria-label="Navegación principal" className="hidden gap-5 md:flex">
+        <nav aria-label="Navegacion principal" className="hidden gap-8 md:flex">
           {navigation.map((item) => (
             <Link
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -43,11 +44,16 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        {showDebugShortcut ? (
-          <Button asChild size="sm" variant="secondary">
-            <Link href="/collections/space-birthday/personalize">Probar</Link>
-          </Button>
-        ) : null}
+        <Link
+          className="inline-flex h-8 items-center gap-2 rounded-full bg-white px-3 text-sm font-semibold shadow-sm"
+          href="/projects/demo-space-birthday/review"
+        >
+          <ShoppingBag aria-hidden="true" className="size-4" />
+          Carrito
+          <span className="grid size-5 place-items-center rounded-full bg-primary text-xs text-primary-foreground">
+            0
+          </span>
+        </Link>
       </Container>
     </header>
   );

@@ -48,7 +48,7 @@ export function MockCheckoutSuccess() {
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild>
-            <Link href="/collections/space-birthday">Volver a Space Birthday</Link>
+            <Link href="/products/stickers-pack">Volver al producto</Link>
           </Button>
           <Button asChild variant="secondary">
             <Link href={`/projects/${demoPersonalizationProjectId}/preview`}>
@@ -56,7 +56,7 @@ export function MockCheckoutSuccess() {
             </Link>
           </Button>
           <Button asChild variant="ghost">
-            <Link href="/catalog">Explorar colecciones</Link>
+            <Link href="/catalog">Explorar productos</Link>
           </Button>
         </div>
       </Card>

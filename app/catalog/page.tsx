@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { PageShell } from "@/components/layout/page-shell";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/layout/container";
+import { Badge } from "@/components/ui/badge";
 import { DiscoveryEvent } from "@/features/analytics/components/discovery-event";
 import { CatalogDiscovery } from "@/features/catalog/components/catalog-discovery";
-import { activePilotCategory } from "@/features/catalog/data/mock-categories";
 import { listPublicCollections } from "@/features/collections/services/list-public-collections";
 
 export const metadata = {
@@ -15,20 +13,23 @@ export default async function CatalogPage() {
   const collections = await listPublicCollections();
 
   return (
-    <PageShell
-      actions={
-        <Button asChild variant="secondary">
-          <Link href={`/categories/${activePilotCategory.slug}`}>
-            Ver Cumpleanos infantiles
-          </Link>
-        </Button>
-      }
-      description="Explora productos comprables por tipo de pieza. Cada pieza pertenece a una coleccion visual, pero se puede comprar de forma independiente."
-      eyebrow="Catalogo"
-      title="Productos para imprimir"
-    >
+    <main>
       <DiscoveryEvent name="catalog_viewed" />
-      <CatalogDiscovery collections={collections} />
-    </PageShell>
+      <Container className="py-14 md:py-16">
+        <div className="mb-10 max-w-3xl">
+          <Badge tone="neutral" className="rounded-full bg-white/72">
+            Catalogo
+          </Badge>
+          <h1 className="mt-5 text-5xl font-semibold leading-[0.98] md:text-7xl">
+            Disenos para personalizar por pieza
+          </h1>
+          <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground">
+            Cada producto abre su propio proceso de personalizacion. La coleccion
+            funciona como tematica visual para combinar piezas relacionadas.
+          </p>
+        </div>
+        <CatalogDiscovery collections={collections} />
+      </Container>
+    </main>
   );
 }

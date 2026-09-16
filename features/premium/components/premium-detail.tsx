@@ -26,7 +26,7 @@ export function PremiumDetail() {
           { href: "/catalog", label: "Catálogo" },
           { href: "/collections/space-birthday", label: "Space Birthday" },
           {
-            href: "/collections/space-birthday/stickers-pack",
+            href: "/products/stickers-pack",
             label: "Stickers pack",
           },
         ]}
@@ -68,7 +68,7 @@ export function PremiumDetail() {
               </EventLink>
             </Button>
             <Button asChild variant="secondary">
-              <Link href="/collections/space-birthday">Volver a la colección</Link>
+              <Link href="/products/stickers-pack">Volver al producto</Link>
             </Button>
           </div>
         </div>

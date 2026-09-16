@@ -74,7 +74,7 @@ export const spaceInvitationProduct: PrototypeProduct = {
   pieceTypeId: "invitation",
   pieceTypeName: "Invitacion",
   printProfileId: "a3-portrait",
-  name: "Invitacion A3",
+  name: "Invitacion Bosque",
   description:
     "Invitacion vertical gratuita para personalizar con los datos de la celebracion.",
   access: "free",
@@ -127,8 +127,8 @@ export const spaceInvitationProduct: PrototypeProduct = {
   outputFormats: ["png", "pdf"],
   prototype: {
     behavior: "simulated",
-    ctaLabel: "Personalizar gratis",
-    href: "/collections/space-birthday/personalize",
+    ctaLabel: "Ver producto",
+    href: "/products/invitation",
     highlights: [
       "Vista previa personalizada",
       "Formato preparado para PNG y PDF",
@@ -155,7 +155,7 @@ export const spaceStickersPackProduct: PrototypeProduct = {
   description:
     "Lamina A3 con 12 stickers circulares coordinados con Sunday in Bloom.",
   access: "premium",
-  priceLabel: "ARS 1.990",
+  priceLabel: "ARS 6.00",
   widthMm: 297,
   heightMm: 420,
   templateId: "tpl_space_stickers_pack_v1",
@@ -163,8 +163,8 @@ export const spaceStickersPackProduct: PrototypeProduct = {
   outputFormats: ["png", "pdf"],
   prototype: {
     behavior: "simulated",
-    ctaLabel: "Ver Stickers pack",
-    href: "/collections/space-birthday/stickers-pack",
+    ctaLabel: "Ver producto",
+    href: "/products/stickers-pack",
     highlights: [
       "12 stickers circulares",
       "Lamina A3",
@@ -191,7 +191,7 @@ export const spaceBannerProduct: PrototypeProduct = {
   description:
     "Banner horizontal coordinado para ambientar la mesa o fondo de cumpleanos.",
   access: "premium",
-  priceLabel: "ARS 2.990",
+  priceLabel: "ARS 8.00",
   widthMm: 2000,
   heightMm: 1000,
   templateId: "tpl_space_banner_v1",
@@ -200,7 +200,7 @@ export const spaceBannerProduct: PrototypeProduct = {
   prototype: {
     behavior: "simulated",
     ctaLabel: "Ver pieza",
-    href: "/collections/space-birthday",
+    href: "/products/banner",
     highlights: [
       "Formato horizontal 2 x 1 m",
       "Arte real desde BANNER 2mx1m-150.jpg",
@@ -223,11 +223,11 @@ export const spaceBackingProduct: PrototypeProduct = {
   pieceTypeId: "backing",
   pieceTypeName: "Backing",
   printProfileId: "backing-1x1-square",
-  name: "Backing 1 x 1 m",
+  name: "Tarjeta Agradecimiento",
   description:
     "Backing cuadrado para fondo decorativo, fotos o mesa principal.",
   access: "premium",
-  priceLabel: "ARS 2.490",
+  priceLabel: "ARS 5.00",
   widthMm: 1000,
   heightMm: 1000,
   templateId: "tpl_space_backing_v1",
@@ -236,7 +236,7 @@ export const spaceBackingProduct: PrototypeProduct = {
   prototype: {
     behavior: "simulated",
     ctaLabel: "Ver pieza",
-    href: "/collections/space-birthday",
+    href: "/products/backing",
     highlights: [
       "Formato cuadrado 1 x 1 m",
       "Arte real desde BACKING 1mx1m-150.jpg",

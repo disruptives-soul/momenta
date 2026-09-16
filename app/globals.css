@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fbfaf7;
-  --foreground: #202124;
+  --background: #edf2fb;
+  --foreground: #202337;
   --surface: #ffffff;
-  --surface-strong: #f7f2e8;
-  --muted: #eef2f1;
-  --muted-foreground: #626862;
-  --border: #d8ded9;
-  --primary: #0f766e;
+  --surface-strong: #f6f8fd;
+  --muted: #eef3fb;
+  --muted-foreground: #73798a;
+  --border: #dfe5f0;
+  --primary: #5f7eea;
   --primary-foreground: #ffffff;
-  --accent: #f97316;
-  --accent-foreground: #1f1f1f;
+  --accent: #202337;
+  --accent-foreground: #ffffff;
   --success: #15803d;
   --warning: #b45309;
   --danger: #b91c1c;
-  --radius: 8px;
-  --shadow-sm: 0 1px 2px rgb(32 33 36 / 0.08);
-  --shadow-md: 0 12px 28px rgb(32 33 36 / 0.1);
+  --radius: 18px;
+  --shadow-sm: 0 10px 30px rgb(32 35 55 / 0.05);
+  --shadow-md: 0 24px 60px rgb(32 35 55 / 0.12);
 }
 
 @theme inline {
@@ -35,9 +35,9 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
-  --radius-sm: 4px;
+  --radius-sm: 10px;
   --radius-md: var(--radius);
-  --radius-lg: 12px;
+  --radius-lg: 28px;
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --spacing-page: 1.25rem;
@@ -60,6 +60,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0;
 }
 
 a {

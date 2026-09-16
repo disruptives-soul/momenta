@@ -14,8 +14,9 @@ import {
   getDraftTemplateLayout,
   type PersonalizationDraft,
 } from "@/features/personalization/types/personalization-draft";
+import { getProductForRenderingTemplate } from "@/features/products/services/product-catalog";
 import { TemplatePreview } from "@/features/rendering/components/template-preview";
-import { renderingTemplates } from "@/features/rendering/templates/template-registry";
+import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
 import {
   getPrototypeProjectErrors,
   hasCompletePrototypeDraft,
@@ -57,13 +58,13 @@ export function PreviewSimulation({
   const isValidProject = isValidPrototypeProject(projectId);
   const isComplete = hasCompletePrototypeDraft(draft);
   const errors = getPrototypeProjectErrors(draft);
-  const personalizedTemplates = renderingTemplates
-    .filter((template) => (draft.scenes[template.id]?.length ?? 0) > 0)
-    .sort((left, right) => {
-      if (left.id === draft.templateId) return -1;
-      if (right.id === draft.templateId) return 1;
-      return 0;
-  });
+  const activeTemplate = getRenderingTemplate(draft.templateId);
+  const activeProduct = activeTemplate
+    ? getProductForRenderingTemplate(activeTemplate)
+    : null;
+  const editHref = activeProduct
+    ? `/products/${activeProduct.slug}/personalize`
+    : "/products/invitation/personalize";
 
   useEffect(() => {
     window.queueMicrotask(() => {
@@ -110,7 +111,7 @@ export function PreviewSimulation({
       <ErrorState
         action={
           <Button asChild>
-            <Link href="/collections/space-birthday">Volver a Space Birthday</Link>
+            <Link href="/catalog">Volver al catalogo</Link>
           </Button>
         }
         description="No encontramos una invitación disponible para mostrar."
@@ -124,7 +125,7 @@ export function PreviewSimulation({
       <ErrorState
         action={
           <Button asChild>
-            <Link href="/collections/space-birthday/personalize">
+            <Link href={editHref}>
               Completar personalización
             </Link>
           </Button>
@@ -161,7 +162,7 @@ export function PreviewSimulation({
     );
   }
 
-  if (state === "generating") {
+  if (state === "generating" || !activeTemplate) {
     return (
       <Card className="mx-auto grid max-w-2xl gap-6 text-center" aria-live="polite">
         <div>
@@ -204,40 +205,27 @@ export function PreviewSimulation({
     <div className="grid gap-6 lg:grid-cols-[1fr_0.75fr] lg:items-start">
       <div className="grid gap-4 outline-none" ref={previewRef} tabIndex={-1}>
         <div>
-          <p className="text-sm font-medium text-primary">
-            Plantillas personalizadas
-          </p>
+          <p className="text-sm font-medium text-primary">Producto personalizado</p>
           <h2 className="mt-2 text-2xl font-semibold">
-            Revisa todas las piezas editadas
+            Revisa tu {activeProduct?.name ?? getTemplateLabel(activeTemplate.id)}
           </h2>
         </div>
-        <div
-          className={
-            personalizedTemplates.length > 1
-              ? "grid gap-5 sm:grid-cols-2"
-              : "grid gap-5"
-          }
-        >
-          {personalizedTemplates.map((template) => (
-            <Card className="grid gap-3 p-3" key={template.id}>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">
-                  {getTemplateLabel(template.id)}
-                </p>
-                <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                  Personalizada
-                </span>
-              </div>
-              <TemplatePreview
-                compact={personalizedTemplates.length > 1}
-                layout={getDraftTemplateLayout(draft, template.id)}
-                scene={draft.scenes[template.id]}
-                templateId={template.id}
-                values={draft.valuesByTemplate[template.id] ?? draft.values}
-              />
-            </Card>
-          ))}
-        </div>
+        <Card className="grid gap-3 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">
+              {activeProduct?.name ?? getTemplateLabel(activeTemplate.id)}
+            </p>
+            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+              Personalizada
+            </span>
+          </div>
+          <TemplatePreview
+            layout={getDraftTemplateLayout(draft, activeTemplate.id)}
+            scene={draft.scenes[activeTemplate.id]}
+            templateId={activeTemplate.id}
+            values={draft.valuesByTemplate[activeTemplate.id] ?? draft.values}
+          />
+        </Card>
       </div>
       <Card className="grid gap-5">
         <div>
@@ -245,7 +233,7 @@ export function PreviewSimulation({
             Tu vista previa está lista
           </p>
           <h1 className="mt-2 text-3xl font-semibold">
-            Revisa las plantillas
+            Revisa el diseÃ±o
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             Revisa que todos los textos personalizados esten correctos antes de
@@ -260,7 +248,7 @@ export function PreviewSimulation({
             }}
             type="button"
           >
-            Confirmar plantillas
+            AÃ±adir al carrito
           </Button>
           <Button
             asChild
@@ -269,7 +257,7 @@ export function PreviewSimulation({
             }
             variant="secondary"
           >
-            <Link href="/collections/space-birthday/personalize">Editar datos</Link>
+            <Link href={editHref}>Editar personalizacion</Link>
           </Button>
           <Button asChild variant="ghost">
             <Link href={`/projects/${projectId}/review`}>Volver a revisión</Link>

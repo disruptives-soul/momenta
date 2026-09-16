@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { DebugEventsPanel } from "@/features/analytics/components/debug-events-panel";
 import "./globals.css";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         <SiteHeader />
         {children}
+        <SiteFooter />
         <DebugEventsPanel />
       </body>
     </html>

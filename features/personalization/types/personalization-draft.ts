@@ -43,7 +43,7 @@ export type PersonalizationTextScenes = Record<string, TextElement[]>;
 export type PersonalizationDraft = {
   projectId: string;
   collectionSlug: "space-birthday";
-  productCode: "essential-invitation";
+  productCode: string;
   templateId: string;
   currentStep: string;
   values: PersonalizationValues;
