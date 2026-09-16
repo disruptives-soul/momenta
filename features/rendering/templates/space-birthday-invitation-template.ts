@@ -15,8 +15,7 @@ export const spaceBirthdayInvitationTemplate: InvitationTemplate = {
     designMasterPpi: 300,
     targetPpi: 300,
   },
-  // Cached for the browser preview. The server renderer derives these values
-  // from master.jpg with sharp().metadata().
+  // Cached master dimensions for browser preview and server PDF rendering.
   widthPx: 3509,
   heightPx: 4961,
   master: {

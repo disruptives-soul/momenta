@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
-import sharp from "sharp";
 import { spaceBirthdayInvitationTemplate } from "./space-birthday-invitation-template";
 import type {
   InvitationTemplate,
@@ -103,7 +102,14 @@ export async function loadOriginalMasterJpgBytes(
 export async function loadRuntimeInvitationTemplate(
   template: InvitationTemplate = spaceBirthdayInvitationTemplate,
 ): Promise<RuntimeInvitationTemplate> {
-  const metadata = await sharp(getMasterAssetPath(template)).metadata();
+  const metadata =
+    template.widthPx && template.heightPx
+      ? {
+          width: template.widthPx,
+          height: template.heightPx,
+          density: template.masterPpi ?? template.printProfile.designMasterPpi,
+        }
+      : await getMasterMetadataWithSharp(template);
 
   if (!metadata.width || !metadata.height) {
     throw new Error(`Cannot read master dimensions for template ${template.id}.`);
@@ -126,4 +132,10 @@ export async function loadRuntimeInvitationTemplate(
     masterPpi: metadata.density,
     printDiagnostics,
   };
+}
+
+async function getMasterMetadataWithSharp(template: InvitationTemplate) {
+  const { default: sharp } = await import("sharp");
+
+  return sharp(getMasterAssetPath(template)).metadata();
 }

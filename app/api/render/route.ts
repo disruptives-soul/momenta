@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 import type { Template } from "@/domain";
 import {
   spaceInvitationProduct,
@@ -141,6 +140,8 @@ async function loadMasterDataUri(template: InvitationTemplate) {
 }
 
 async function svgToPng(svg: string) {
+  const { default: sharp } = await import("sharp");
+
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
