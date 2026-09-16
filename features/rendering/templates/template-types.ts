@@ -113,7 +113,8 @@ export type TemplatePrintProfile = {
   heightMm: number;
   label: string;
   instructionsKey: string;
-  expectedPpi: number;
+  designMasterPpi: number;
+  targetPpi: number;
   ppiTolerance?: number;
 };
 
@@ -121,9 +122,11 @@ export type TemplatePrintDiagnostics = {
   effectivePpiX: number;
   effectivePpiY: number;
   effectivePpi: number;
+  designMasterPpi: number;
+  targetPpi: number;
   metadataPpi?: number;
-  expectedWidthPx: number;
-  expectedHeightPx: number;
+  targetWidthPx: number;
+  targetHeightPx: number;
   warnings: string[];
 };
 

@@ -12,7 +12,8 @@ export const spaceBirthdayInvitationTemplate: InvitationTemplate = {
     heightMm: 420,
     label: "A3 vertical",
     instructionsKey: "a3-standard",
-    expectedPpi: 300,
+    designMasterPpi: 300,
+    targetPpi: 300,
   },
   // Cached for the browser preview. The server renderer derives these values
   // from master.jpg with sharp().metadata().

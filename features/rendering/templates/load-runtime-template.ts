@@ -12,8 +12,8 @@ function mmToInches(mm: number) {
   return mm / 25.4;
 }
 
-function getExpectedPixels(mm: number, expectedPpi: number) {
-  return Math.round(mmToInches(mm) * expectedPpi);
+function getTargetPixels(mm: number, targetPpi: number) {
+  return Math.round(mmToInches(mm) * targetPpi);
 }
 
 function roundPpi(value: number) {
@@ -40,8 +40,8 @@ export function validateTemplatePrintProfile(
 ): TemplatePrintDiagnostics {
   const profile = template.printProfile;
   const tolerance = profile.ppiTolerance ?? 1;
-  const expectedWidthPx = getExpectedPixels(profile.widthMm, profile.expectedPpi);
-  const expectedHeightPx = getExpectedPixels(profile.heightMm, profile.expectedPpi);
+  const targetWidthPx = getTargetPixels(profile.widthMm, profile.targetPpi);
+  const targetHeightPx = getTargetPixels(profile.heightMm, profile.targetPpi);
   const effectivePpiX = metadata.width / mmToInches(profile.widthMm);
   const effectivePpiY = metadata.height / mmToInches(profile.heightMm);
   const effectivePpi = Math.min(effectivePpiX, effectivePpiY);
@@ -49,10 +49,10 @@ export function validateTemplatePrintProfile(
 
   if (
     metadata.density !== undefined &&
-    Math.abs(metadata.density - profile.expectedPpi) > tolerance
+    Math.abs(metadata.density - profile.targetPpi) > tolerance
   ) {
     warnings.push(
-      `Master ${template.id} metadata density is ${metadata.density} PPI; expected ${profile.expectedPpi} PPI.`,
+      `Master ${template.id} metadata density is ${metadata.density} PPI; target output is ${profile.targetPpi} PPI.`,
     );
   }
 
@@ -60,15 +60,17 @@ export function validateTemplatePrintProfile(
     effectivePpiX: roundPpi(effectivePpiX),
     effectivePpiY: roundPpi(effectivePpiY),
     effectivePpi: roundPpi(effectivePpi),
+    designMasterPpi: profile.designMasterPpi,
+    targetPpi: profile.targetPpi,
     metadataPpi: metadata.density,
-    expectedWidthPx,
-    expectedHeightPx,
+    targetWidthPx,
+    targetHeightPx,
     warnings,
   };
 
-  if (effectivePpi + tolerance < profile.expectedPpi) {
+  if (effectivePpi + tolerance < profile.targetPpi) {
     throw new TemplatePrintProfileError(
-      `Master ${template.id} is ${diagnostics.effectivePpi} effective PPI; expected at least ${profile.expectedPpi} PPI for ${profile.widthMm} x ${profile.heightMm} mm.`,
+      `Master ${template.id} is ${diagnostics.effectivePpi} effective PPI; target is at least ${profile.targetPpi} PPI for ${profile.widthMm} x ${profile.heightMm} mm.`,
       diagnostics,
     );
   }

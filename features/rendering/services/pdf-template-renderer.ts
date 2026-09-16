@@ -544,27 +544,3 @@ export type PersonalizedPdfTemplateInput = {
   layout?: PersonalizationLayoutOverrides;
   scene?: TextElement[];
 };
-
-export async function renderPersonalizedTemplatesPdf(
-  templates: PersonalizedPdfTemplateInput[],
-) {
-  const pdf = await PDFDocument.create();
-
-  for (const item of templates) {
-    const templatePdfBytes = await renderPersonalizedInvitationPdf(
-      item.values,
-      item.template,
-      item.layout,
-      item.scene,
-    );
-    const templatePdf = await PDFDocument.load(templatePdfBytes);
-    const pages = await pdf.copyPages(
-      templatePdf,
-      templatePdf.getPageIndices(),
-    );
-
-    pages.forEach((page) => pdf.addPage(page));
-  }
-
-  return pdf.save();
-}

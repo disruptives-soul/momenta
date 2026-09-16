@@ -7,10 +7,8 @@ import {
   spaceStickersPackProduct,
 } from "@/features/products/data/mock-products";
 import { LocalRenderProvider } from "@/features/rendering/services/local-render-provider";
-import {
-  renderPersonalizedInvitationPdf,
-  renderPersonalizedTemplatesPdf,
-} from "@/features/rendering/services/pdf-template-renderer";
+import { renderPersonalizedInvitationPdf } from "@/features/rendering/services/pdf-template-renderer";
+import { createZip } from "@/features/rendering/services/zip-writer";
 import {
   getMasterAssetPath,
   TemplatePrintProfileError,
@@ -56,6 +54,10 @@ function getRenderFormat(request: Request, body: RenderRequestBody): RenderForma
 
 function getFileName(template: InvitationTemplate, format: RenderFormat) {
   return `${template.id}.${format}`;
+}
+
+function getProductPdfFileName(template: InvitationTemplate) {
+  return `${template.collectionSlug}-${template.productCode}.pdf`;
 }
 
 function normalizeData(data: RenderRequestBody["data"]): PersonalizationValues {
@@ -180,20 +182,32 @@ export async function POST(request: Request) {
       );
     }
 
-    let pdf: Uint8Array;
+    let zip: Uint8Array;
 
     try {
-      pdf = await renderPersonalizedTemplatesPdf(
-        templates.filter((item) => item !== null),
+      const pdfFiles = await Promise.all(
+        templates
+          .filter((item) => item !== null)
+          .map(async (item) => ({
+            name: getProductPdfFileName(item.template),
+            bytes: await renderPersonalizedInvitationPdf(
+              item.values,
+              item.template,
+              item.layout,
+              item.scene,
+            ),
+          })),
       );
+
+      zip = createZip(pdfFiles);
     } catch (error) {
       return renderErrorResponse(error);
     }
 
     return renderNamedFileResponse(
-      bytesToResponseBody(pdf),
-      "momenta-space-birthday-templates.pdf",
-      "application/pdf",
+      bytesToResponseBody(zip),
+      "momenta-space-birthday-products.zip",
+      "application/zip",
     );
   }
 

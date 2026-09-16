@@ -181,7 +181,8 @@ export async function addInstructionPageTemplate(
   const profileRows = [
     ["Perfil", profile.label],
     ["Tamano final", `${profile.widthMm} x ${profile.heightMm} mm`],
-    ["PPI esperado", `${profile.expectedPpi} PPI`],
+    ["PPI master diseño", `${profile.designMasterPpi} PPI`],
+    ["PPI target salida", `${profile.targetPpi} PPI`],
     [
       "PPI efectivo",
       `${template.printDiagnostics.effectivePpiX} x ${template.printDiagnostics.effectivePpiY} PPI`,

@@ -125,7 +125,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
       const link = document.createElement("a");
 
       link.href = downloadUrl;
-      link.download = "momenta-space-birthday-templates.pdf";
+      link.download = "momenta-space-birthday-products.zip";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -154,11 +154,10 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
           <div>
             <Badge tone="free">Free</Badge>
             <h1 className="mt-3 text-3xl font-semibold md:text-5xl">
-              Tus plantillas estan listas
+              Tus productos estan listos
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Esta descarga genera un PDF multipagina con todas las plantillas
-              personalizadas.
+              Esta descarga genera un ZIP con un PDF independiente por producto.
             </p>
           </div>
 
@@ -170,7 +169,7 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             <div>
               <p className="text-muted-foreground">Producto</p>
               <p className="font-semibold">
-                {downloadableTemplates.length} plantillas personalizadas
+                {downloadableTemplates.length} productos personalizados
               </p>
             </div>
             <div>
@@ -187,8 +186,8 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
             >
               <Download aria-hidden="true" />
               {downloadState === "downloading"
-                ? "Renderizando plantillas"
-                : "Descargar plantillas"}
+                ? "Renderizando productos"
+                : "Descargar ZIP"}
             </Button>
             <Button asChild variant="secondary">
               <Link href={`/projects/${demoPersonalizationProjectId}/preview`}>
@@ -199,13 +198,13 @@ export function DownloadSimulation({ projectId }: DownloadSimulationProps) {
 
           {downloadState === "completed" ? (
             <p className="rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
-              Descarga generada: momenta-space-birthday-templates.pdf
+              Descarga generada: momenta-space-birthday-products.zip
             </p>
           ) : null}
 
           {downloadState === "failed" ? (
             <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-              No pudimos generar las plantillas. Revisa los datos o intenta
+              No pudimos generar los productos. Revisa los datos o intenta
               nuevamente.
             </p>
           ) : null}
