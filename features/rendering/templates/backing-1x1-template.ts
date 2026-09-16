@@ -12,7 +12,7 @@ export const backing1x1Template: InvitationTemplate = {
     heightMm: 1000,
     label: "Backing 1 x 1 m",
     instructionsKey: "large-format-backing",
-    designMasterPpi: 300,
+    designMasterPpi: 150,
     targetPpi: 150,
   },
   widthPx: 5907,

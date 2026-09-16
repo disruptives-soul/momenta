@@ -12,7 +12,7 @@ export const banner2x1Template: InvitationTemplate = {
     heightMm: 1000,
     label: "Banner 2 x 1 m",
     instructionsKey: "large-format-banner",
-    designMasterPpi: 300,
+    designMasterPpi: 150,
     targetPpi: 150,
   },
   widthPx: 11812,

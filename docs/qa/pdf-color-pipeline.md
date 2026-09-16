@@ -70,3 +70,27 @@ Illustrator export, JPEG profile, pdf-lib image embedding, and the PDF viewer.
 Compare `master.jpg` and PDF A in a color-managed application, ideally Acrobat.
 Do not add new conversions until that comparison isolates where the color shift
 is introduced.
+
+## Master resolution standards
+
+MOMENTA does not use a single 300 PPI master standard for every product family.
+Design exports the master at the final resolution needed by the product:
+
+```text
+Invitation A3  -> 300 PPI
+Stickers A3    -> 300 PPI
+Banner 2 x 1 m -> 150 PPI
+Backing 1 x 1 m -> 150 PPI
+```
+
+The renderer must not resample a 300 PPI master down to 150 PPI. Fabiana exports
+the correct master resolution, MOMENTA validates the effective PPI, and the PDF
+embeds the original JPG bytes directly.
+
+Approximate fixture dimensions:
+
+```text
+A3 at 300 PPI          -> 3508 x 4961 px
+Banner 2 x 1 m at 150 -> 11811 x 5906 px
+Backing 1 x 1 m at 150 -> 5906 x 5906 px
+```

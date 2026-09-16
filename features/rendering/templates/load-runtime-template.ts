@@ -49,10 +49,10 @@ export function validateTemplatePrintProfile(
 
   if (
     metadata.density !== undefined &&
-    Math.abs(metadata.density - profile.targetPpi) > tolerance
+    Math.abs(metadata.density - profile.designMasterPpi) > tolerance
   ) {
     warnings.push(
-      `Master ${template.id} metadata density is ${metadata.density} PPI; target output is ${profile.targetPpi} PPI.`,
+      `Master ${template.id} metadata density is ${metadata.density} PPI; design master standard is ${profile.designMasterPpi} PPI.`,
     );
   }
 
@@ -68,9 +68,9 @@ export function validateTemplatePrintProfile(
     warnings,
   };
 
-  if (effectivePpi + tolerance < profile.targetPpi) {
+  if (effectivePpi + tolerance < profile.designMasterPpi) {
     throw new TemplatePrintProfileError(
-      `Master ${template.id} is ${diagnostics.effectivePpi} effective PPI; target is at least ${profile.targetPpi} PPI for ${profile.widthMm} x ${profile.heightMm} mm.`,
+      `Master ${template.id} is ${diagnostics.effectivePpi} effective PPI; design master standard is at least ${profile.designMasterPpi} PPI for ${profile.widthMm} x ${profile.heightMm} mm.`,
       diagnostics,
     );
   }
