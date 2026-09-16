@@ -14,11 +14,11 @@ export const mockCollections: PublicCollection[] = [
     slug: "space-birthday",
     name: "Space Birthday",
     description:
-      "Una colección espacial para crear invitaciones y piezas imprimibles para cumpleaños infantiles.",
+      "Una coleccion espacial para crear invitaciones y piezas imprimibles para cumpleanos infantiles.",
     categorySlug: activePilotCategory.slug,
     categoryName: activePilotCategory.name,
     status: "published",
-    tags: ["infantil", "espacio", "cumpleaños"],
+    tags: ["infantil", "espacio", "cumpleanos"],
     pieces: [
       {
         id: "piece_space_invitation",
@@ -71,7 +71,7 @@ export const mockCollections: PublicCollection[] = [
         stickersPreview: spaceBirthdayAssets.stickersPreview.id,
         personalizedExample: spaceBirthdayAssets.personalizedExample.id,
       },
-      celebrationType: "Cumpleaños infantiles",
+      celebrationType: "Cumpleanos infantiles",
       customizableFields: [
         "nombre",
         "edad",
@@ -81,16 +81,16 @@ export const mockCollections: PublicCollection[] = [
         "mensaje adicional",
       ],
       heroCopy:
-        "Una colección espacial para crear una invitación clara, alegre y lista para imprimir.",
+        "Una coleccion espacial para crear una invitacion clara, alegre y lista para imprimir.",
       missingAssets: [
-        "Portada final de colección",
-        "Miniatura de catálogo",
-        "Preview final de Invitación esencial",
+        "Portada final de coleccion",
+        "Miniatura de catalogo",
+        "Preview final de Invitacion esencial",
         "Preview final de Stickers pack",
         "Ejemplo personalizado final",
       ],
       visualStyle:
-        "Espacio infantil con cohetes, planetas, estrellas y colores brillantes aptos para impresión.",
+        "Espacio infantil con cohetes, planetas, estrellas y colores brillantes aptos para impresion.",
     },
   },
 ];

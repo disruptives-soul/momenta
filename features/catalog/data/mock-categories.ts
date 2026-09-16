@@ -10,10 +10,10 @@ export const mockCategories: MockCategory[] = [
   {
     id: "cat_childrens_birthdays",
     slug: "childrens-birthdays",
-    name: "Cumpleaños infantiles",
+    name: "Cumpleanos infantiles",
     status: "active",
     description:
-      "Colecciones imprimibles para cumpleaños infantiles con personalización guiada.",
+      "Colecciones imprimibles para cumpleanos infantiles con personalizacion guiada.",
   },
   {
     id: "cat_baby_shower",
@@ -25,9 +25,9 @@ export const mockCategories: MockCategory[] = [
   {
     id: "cat_baptism_communion",
     slug: "baptism-communion",
-    name: "Bautismo y comunión",
+    name: "Bautismo y comunion",
     status: "coming-soon",
-    description: "Diseños imprimibles para bautismo y comunión.",
+    description: "Disenos imprimibles para bautismo y comunion.",
   },
 ];
 

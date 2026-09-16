@@ -1,13 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Bookmark, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Container } from "@/components/layout/container";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DiscoveryEvent } from "@/features/analytics/components/discovery-event";
 import { EventLink } from "@/features/analytics/components/event-link";
 import { ProductOptionCard } from "@/features/products/components/product-option-card";
+import { SaveProductButton } from "@/features/products/components/save-product-button";
 import {
   getProductBySlug,
   getRelatedProducts,
@@ -137,10 +138,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     Personalizar
                   </EventLink>
                 </Button>
-                <Button className="rounded-full bg-white px-6" type="button" variant="secondary">
-                  <Bookmark aria-hidden="true" />
-                  Guardar
-                </Button>
+                <SaveProductButton productSlug={product.slug} />
               </div>
             </div>
           </div>

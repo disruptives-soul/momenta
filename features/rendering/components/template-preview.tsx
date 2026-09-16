@@ -19,6 +19,7 @@ import { applyFieldOverride } from "../templates/template-overrides";
 
 type TemplatePreviewProps = {
   values: PersonalizationValues;
+  ariaLabel?: string;
   layout?: PersonalizationLayoutOverrides;
   scene?: TextElement[];
   templateId?: string;
@@ -67,6 +68,7 @@ function wrapSceneText(element: TextElement) {
 
 export function TemplatePreview({
   values,
+  ariaLabel,
   layout,
   scene,
   templateId = "space-birthday-invitation-v1",
@@ -89,7 +91,7 @@ export function TemplatePreview({
   return (
     <figure>
       <svg
-        aria-label="Vista previa de la Invitacion esencial personalizada"
+        aria-label={ariaLabel ?? "Vista previa personalizada"}
         className={cn(
           "mx-auto block h-auto w-full max-w-sm overflow-hidden rounded-md border border-border bg-surface shadow-md",
           compact && "max-w-64",
@@ -248,7 +250,7 @@ export function TemplatePreview({
       </svg>
       {hasLongText ? (
         <figcaption className="mx-auto mt-3 max-w-sm text-sm text-warning">
-          Algunos textos estan cerca del limite visual de la invitacion.
+          Algunos textos estan cerca del limite visual de la pieza.
         </figcaption>
       ) : null}
     </figure>

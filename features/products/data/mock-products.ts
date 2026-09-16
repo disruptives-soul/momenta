@@ -223,7 +223,7 @@ export const spaceBackingProduct: PrototypeProduct = {
   pieceTypeId: "backing",
   pieceTypeName: "Backing",
   printProfileId: "backing-1x1-square",
-  name: "Tarjeta Agradecimiento",
+  name: "Backing 1 x 1 m",
   description:
     "Backing cuadrado para fondo decorativo, fotos o mesa principal.",
   access: "premium",

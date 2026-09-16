@@ -312,6 +312,7 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
       collectionSlug: draft.collectionSlug,
       productCode: draft.productCode,
     });
+    savePersonalizationDraft(draft);
     router.push(`/projects/${demoPersonalizationProjectId}/review`);
   }
 
@@ -331,6 +332,7 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
         onReorderTextElement={reorderTextElement}
         onUndo={undo}
         onUpdateTextElement={updateTextElement}
+        productName={activeProduct.name}
         scene={activeScene}
         template={activeTemplate}
       />

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { PublicCollection } from "@/features/collections/types/public-collection";
 import { ProductOptionCard } from "@/features/products/components/product-option-card";
 import {
@@ -19,8 +20,13 @@ const themeFilters = [
 ] as const;
 
 export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
-  const [activePieceType, setActivePieceType] = useState("all");
-  const [activeTheme, setActiveTheme] = useState("all");
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedPieceType = searchParams.get("type") ?? "all";
+  const requestedTheme = searchParams.get("theme") ?? "all";
+  const activePieceType = requestedPieceType;
+  const activeTheme = requestedTheme;
 
   const products = useMemo(
     () =>
@@ -51,6 +57,24 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
     })),
   ];
 
+  function updateFilters(nextType: string, nextTheme: string) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (nextType === "all") {
+      params.delete("type");
+    } else {
+      params.set("type", nextType);
+    }
+
+    if (nextTheme === "all") {
+      params.delete("theme");
+    } else {
+      params.set("theme", nextTheme);
+    }
+
+    router.push(params.size ? `${pathname}?${params.toString()}` : pathname);
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
       <aside className="h-fit rounded-[1.35rem] bg-white/72 p-5 shadow-sm lg:sticky lg:top-20">
@@ -73,7 +97,7 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                   key={filter.id}
-                  onClick={() => setActivePieceType(filter.id)}
+                  onClick={() => updateFilters(filter.id, activeTheme)}
                   type="button"
                 >
                   {filter.label}
@@ -96,7 +120,7 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                   key={filter.id}
-                  onClick={() => setActiveTheme(filter.id)}
+                  onClick={() => updateFilters(activePieceType, filter.id)}
                   type="button"
                 >
                   {filter.label}

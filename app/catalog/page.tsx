@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Container } from "@/components/layout/container";
 import { Badge } from "@/components/ui/badge";
 import { DiscoveryEvent } from "@/features/analytics/components/discovery-event";
@@ -28,7 +29,13 @@ export default async function CatalogPage() {
             funciona como tematica visual para combinar piezas relacionadas.
           </p>
         </div>
-        <CatalogDiscovery collections={collections} />
+        <Suspense
+          fallback={
+            <div className="min-h-96 rounded-[1.35rem] bg-white/72 shadow-sm" />
+          }
+        >
+          <CatalogDiscovery collections={collections} />
+        </Suspense>
       </Container>
     </main>
   );

@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "render:color-fixture": "node tools/compare-color-pipeline.mjs",
     "render:color-audit": "node tools/audit-pdf-color-pipeline.mjs",
-    "render:color-profile": "node tools/inspect-pdf-color-profile.mjs"
+    "render:color-profile": "node tools/inspect-pdf-color-profile.mjs",
+    "render:print-qa": "node tools/print-output-qa.mjs",
+    "render:print-qa:strict": "node tools/print-output-qa.mjs --require-fonts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

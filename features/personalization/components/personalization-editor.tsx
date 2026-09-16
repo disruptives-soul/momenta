@@ -38,6 +38,7 @@ import { PersonalizationCanvas } from "@/features/template-editor/components/per
 
 type PersonalizationEditorProps = {
   exitHref: string;
+  productName: string;
   template: InvitationTemplate;
   scene: TextElement[];
   constraints: TextSceneConstraints;
@@ -56,12 +57,8 @@ type PersonalizationEditorProps = {
 const zoomLevels = [0.75, 0.9, 1, 1.15, 1.3];
 type EditorPanel = "edit" | "text" | "layers" | "guides";
 
-function getTemplateLabel(templateId: string) {
-  if (templateId.includes("banner")) return "Banner 2 x 1 m";
-  if (templateId.includes("backing")) return "Backing 1 x 1 m";
-  if (templateId.includes("stickers")) return "Stickers A3";
-  return "Invitacion A3";
-}
+const printQaLockedControlTitle =
+  "Bloqueado temporalmente hasta cerrar QA de Print Output";
 
 function getNextColor(colors: string[], currentColor: string) {
   const currentIndex = colors.indexOf(currentColor);
@@ -75,6 +72,7 @@ function getNextColor(colors: string[], currentColor: string) {
 
 export function PersonalizationEditor({
   exitHref,
+  productName,
   template,
   scene,
   constraints,
@@ -146,7 +144,7 @@ export function PersonalizationEditor({
           </Button>
           <div className="h-7 w-px bg-border" />
           <p className="max-w-[28rem] truncate text-sm font-medium">
-            {getTemplateLabel(template.id)}
+            {productName}
           </p>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="size-2 rounded-full bg-success" />
@@ -454,6 +452,7 @@ export function PersonalizationEditor({
                 <span className="h-6 w-px bg-border" />
                 <select
                   className="h-9 max-w-40 rounded-md border border-border bg-background px-2 text-sm font-medium"
+                  disabled
                   onChange={(event) => {
                     const option = constraints.allowedFonts.find(
                       (item) => item.value === event.target.value,
@@ -465,6 +464,7 @@ export function PersonalizationEditor({
                       fontAsset: option?.fontAsset,
                     });
                   }}
+                  title={printQaLockedControlTitle}
                   value={selectedElement.fontFamily}
                 >
                   {constraints.allowedFonts.map((option) => (
@@ -542,6 +542,7 @@ export function PersonalizationEditor({
                 />
                 <Button
                   aria-label="Negrita"
+                  disabled
                   onClick={() =>
                     updateSelectedElement({
                       fontWeight:
@@ -549,6 +550,7 @@ export function PersonalizationEditor({
                     })
                   }
                   size="sm"
+                  title={printQaLockedControlTitle}
                   type="button"
                   variant={
                     (selectedElement.fontWeight ?? 500) >= 700
@@ -558,6 +560,9 @@ export function PersonalizationEditor({
                 >
                   B
                 </Button>
+                <span className="rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">
+                  Tipografia congelada
+                </span>
                 <Button
                   aria-label="Duplicar texto"
                   onClick={() => onDuplicateTextElement(selectedElement.id)}
@@ -582,17 +587,6 @@ export function PersonalizationEditor({
 
           <div className="grid min-h-0">
             <PersonalizationCanvas
-              onCycleElementColor={(elementId) => {
-                const element = scene.find((item) => item.id === elementId);
-
-                if (!element) {
-                  return;
-                }
-
-                onUpdateTextElement(elementId, {
-                  fill: getNextColor(constraints.allowedColors, element.fill),
-                });
-              }}
               onSelectedElementChange={setSelectedElementId}
               onUpdateTextElement={onUpdateTextElement}
               previewMode={previewMode}

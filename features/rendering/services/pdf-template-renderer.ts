@@ -53,6 +53,71 @@ function normalizePdfText(value: string) {
   return value.replaceAll("\uFFFD", "").normalize("NFC");
 }
 
+function getTrackedTextWidth(
+  value: string,
+  font: PDFFont,
+  fontSize: number,
+  letterSpacingPt = 0,
+) {
+  if (!letterSpacingPt || value.length <= 1) {
+    return font.widthOfTextAtSize(value, fontSize);
+  }
+
+  return (
+    Array.from(value).reduce(
+      (width, character) => width + font.widthOfTextAtSize(character, fontSize),
+      0,
+    ) +
+    letterSpacingPt * (Array.from(value).length - 1)
+  );
+}
+
+function drawTrackedText(
+  page: PDFPage,
+  value: string,
+  options: {
+    x: number;
+    y: number;
+    size: number;
+    font: PDFFont;
+    color: ReturnType<typeof rgb>;
+    opacity: number;
+    letterSpacingPt?: number;
+    rotate?: ReturnType<typeof degrees>;
+  },
+) {
+  const letterSpacingPt = options.letterSpacingPt ?? 0;
+
+  if (!letterSpacingPt || value.length <= 1) {
+    page.drawText(value, {
+      x: options.x,
+      y: options.y,
+      size: options.size,
+      font: options.font,
+      color: options.color,
+      opacity: options.opacity,
+      rotate: options.rotate,
+    });
+    return;
+  }
+
+  let cursorX = options.x;
+
+  for (const character of Array.from(value)) {
+    page.drawText(character, {
+      x: cursorX,
+      y: options.y,
+      size: options.size,
+      font: options.font,
+      color: options.color,
+      opacity: options.opacity,
+      rotate: options.rotate,
+    });
+    cursorX +=
+      options.font.widthOfTextAtSize(character, options.size) + letterSpacingPt;
+  }
+}
+
 function getElementStandardFontName(element: TextElement) {
   const isBold = (element.fontWeight ?? 500) >= 700;
 
@@ -151,16 +216,21 @@ function fitFontSize(
   font: PDFFont,
   maxWidthPt: number,
   template: RuntimeInvitationTemplate,
+  pageWidthPt: number,
   pageHeightPt: number,
 ) {
   let fontSize = pxFontSizeToPt(field.fontSize, template, pageHeightPt);
   const minFontSize = pxFontSizeToPt(field.minFontSize, template, pageHeightPt);
+  const letterSpacingPt = pxToPdfWidth(field.letterSpacing ?? 0, template, pageWidthPt);
 
   if (field.maxLines > 1) {
     return fontSize;
   }
 
-  while (fontSize > minFontSize && font.widthOfTextAtSize(value, fontSize) > maxWidthPt) {
+  while (
+    fontSize > minFontSize &&
+    getTrackedTextWidth(value, font, fontSize, letterSpacingPt) > maxWidthPt
+  ) {
     fontSize -= 0.5;
   }
 
@@ -173,6 +243,7 @@ function wrapPdfText(
   font: PDFFont,
   fontSize: number,
   maxWidthPt: number,
+  letterSpacingPt = 0,
 ) {
   const words = value.trim().split(/\s+/).filter(Boolean);
 
@@ -186,7 +257,7 @@ function wrapPdfText(
   for (const word of words) {
     const nextLine = currentLine ? `${currentLine} ${word}` : word;
 
-    if (font.widthOfTextAtSize(nextLine, fontSize) <= maxWidthPt) {
+    if (getTrackedTextWidth(nextLine, font, fontSize, letterSpacingPt) <= maxWidthPt) {
       currentLine = nextLine;
       continue;
     }
@@ -213,7 +284,7 @@ function wrapPdfText(
 
     while (
       lastLine.length > 0 &&
-      font.widthOfTextAtSize(`${lastLine}...`, fontSize) > maxWidthPt
+      getTrackedTextWidth(`${lastLine}...`, font, fontSize, letterSpacingPt) > maxWidthPt
     ) {
       lastLine = lastLine.slice(0, -1).trimEnd();
     }
@@ -233,7 +304,8 @@ function getAlignedTextX(
   template: RuntimeInvitationTemplate,
 ) {
   const anchorX = pxToPdfX(field.x, template, pageWidthPt);
-  const lineWidth = font.widthOfTextAtSize(line, fontSize);
+  const letterSpacingPt = pxToPdfWidth(field.letterSpacing ?? 0, template, pageWidthPt);
+  const lineWidth = getTrackedTextWidth(line, font, fontSize, letterSpacingPt);
 
   if (field.align === "left") {
     return anchorX;
@@ -251,10 +323,16 @@ function fitElementFontSize(
   font: PDFFont,
   maxWidthPt: number,
   template: RuntimeInvitationTemplate,
+  pageWidthPt: number,
   pageHeightPt: number,
 ) {
   let fontSize = pxFontSizeToPt(element.fontSize, template, pageHeightPt);
   const minFontSize = pxFontSizeToPt(element.minFontSize, template, pageHeightPt);
+  const letterSpacingPt = pxToPdfWidth(
+    element.letterSpacing ?? 0,
+    template,
+    pageWidthPt,
+  );
 
   if (element.maxLines > 1) {
     return fontSize;
@@ -262,7 +340,7 @@ function fitElementFontSize(
 
   while (
     fontSize > minFontSize &&
-    font.widthOfTextAtSize(element.text, fontSize) > maxWidthPt
+    getTrackedTextWidth(element.text, font, fontSize, letterSpacingPt) > maxWidthPt
   ) {
     fontSize -= 0.5;
   }
@@ -275,6 +353,7 @@ function wrapPdfElementText(
   font: PDFFont,
   fontSize: number,
   maxWidthPt: number,
+  letterSpacingPt = 0,
 ) {
   const words = element.text.trim().split(/\s+/).filter(Boolean);
 
@@ -288,7 +367,7 @@ function wrapPdfElementText(
   for (const word of words) {
     const nextLine = currentLine ? `${currentLine} ${word}` : word;
 
-    if (font.widthOfTextAtSize(nextLine, fontSize) <= maxWidthPt) {
+    if (getTrackedTextWidth(nextLine, font, fontSize, letterSpacingPt) <= maxWidthPt) {
       currentLine = nextLine;
       continue;
     }
@@ -320,7 +399,12 @@ function getAlignedElementTextX(
   template: RuntimeInvitationTemplate,
 ) {
   const anchorX = pxToPdfX(element.x, template, pageWidthPt);
-  const lineWidth = font.widthOfTextAtSize(line, fontSize);
+  const letterSpacingPt = pxToPdfWidth(
+    element.letterSpacing ?? 0,
+    template,
+    pageWidthPt,
+  );
+  const lineWidth = getTrackedTextWidth(line, font, fontSize, letterSpacingPt);
 
   if (element.align === "left") {
     return anchorX;
@@ -439,19 +523,26 @@ export async function renderPersonalizedInvitationPdf(
         font,
         maxWidthPt,
         template,
+        widthPt,
         heightPt,
+      );
+      const letterSpacingPt = pxToPdfWidth(
+        element.letterSpacing ?? 0,
+        template,
+        widthPt,
       );
       const lines = wrapPdfElementText(
         { ...element, text: value },
         font,
         fontSize,
         maxWidthPt,
+        letterSpacingPt,
       );
       const lineHeight = element.lineHeight ?? 1.15;
       const startY = pxToPdfY(element.y, template, heightPt);
 
       lines.forEach((line, index) => {
-        page.drawText(line, {
+        drawTrackedText(page, line, {
           x: getAlignedElementTextX(
             element,
             line,
@@ -465,6 +556,7 @@ export async function renderPersonalizedInvitationPdf(
           font,
           color: hexToRgb(element.fill),
           opacity: element.opacity ?? 1,
+          letterSpacingPt,
           rotate: element.rotation ? degrees(-(element.rotation ?? 0)) : undefined,
         });
       });
@@ -485,7 +577,15 @@ export async function renderPersonalizedInvitationPdf(
       ? await getPdfFont(pdf, standardFonts, customFontCache, field)
       : getEmbeddedStandardFont(getStandardFontName(field), standardFonts);
     const maxWidthPt = pxToPdfWidth(field.width, template, widthPt);
-    const fontSize = fitFontSize(value, field, font, maxWidthPt, template, heightPt);
+    const fontSize = fitFontSize(
+      value,
+      field,
+      font,
+      maxWidthPt,
+      template,
+      widthPt,
+      heightPt,
+    );
     if (field.arc) {
       for (const copy of field.copies ?? [{ x: field.x, y: field.y }]) {
         drawArcText(
@@ -504,13 +604,25 @@ export async function renderPersonalizedInvitationPdf(
       continue;
     }
 
-    const lines = wrapPdfText(value, field, font, fontSize, maxWidthPt);
+    const letterSpacingPt = pxToPdfWidth(
+      field.letterSpacing ?? 0,
+      template,
+      widthPt,
+    );
+    const lines = wrapPdfText(
+      value,
+      field,
+      font,
+      fontSize,
+      maxWidthPt,
+      letterSpacingPt,
+    );
     const lineHeight = field.lineHeight ?? 1.15;
     for (const copy of field.copies ?? [{ x: field.x, y: field.y }]) {
       const startY = pxToPdfY(copy.y, template, heightPt);
 
       lines.forEach((line, index) => {
-        page.drawText(line, {
+        drawTrackedText(page, line, {
           x: getAlignedTextX(
             { ...field, x: copy.x, y: copy.y },
             line,
@@ -524,6 +636,7 @@ export async function renderPersonalizedInvitationPdf(
           font,
           color: hexToRgb(field.fill),
           opacity: field.opacity ?? 1,
+          letterSpacingPt,
           rotate: field.rotation ? degrees(-(field.rotation ?? 0)) : undefined,
         });
       });

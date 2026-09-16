@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Palette, Type } from "lucide-react";
+import { Type } from "lucide-react";
 import {
   Image as KonvaImage,
   Layer,
@@ -30,7 +30,6 @@ type PersonalizationCanvasProps = {
   showGuides: boolean;
   onSelectedElementChange: (elementId: string | null) => void;
   onUpdateTextElement: (elementId: string, patch: Partial<TextElement>) => void;
-  onCycleElementColor: (elementId: string) => void;
 };
 
 function useCanvasImage(src: string) {
@@ -59,7 +58,6 @@ export function PersonalizationCanvas({
   showGuides,
   onSelectedElementChange,
   onUpdateTextElement,
-  onCycleElementColor,
 }: PersonalizationCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scale = useTemplateScale(containerRef, template, zoom);
@@ -291,14 +289,6 @@ export function PersonalizationCanvas({
             type="button"
           >
             <Type className="size-4" />
-          </button>
-          <button
-            aria-label="Cambiar color"
-            className="grid size-8 place-items-center rounded-full hover:bg-muted"
-            onClick={() => onCycleElementColor(activeElement.id)}
-            type="button"
-          >
-            <Palette className="size-4" />
           </button>
         </div>
       ) : null}

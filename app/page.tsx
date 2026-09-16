@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Container } from "@/components/layout/container";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export default async function HomePage() {
               {", hechos a tu medida"}
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-              Invitaciones, flyers y stickers con una estetica cuidada. Elige una
+              Invitaciones, banners y stickers con una estetica cuidada. Elige una
               pieza, personalizala con tus datos y llevala al carrito en minutos.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
@@ -43,7 +44,13 @@ export default async function HomePage() {
       </section>
 
       <Container className="pb-20">
-        <CatalogDiscovery collections={collections} />
+        <Suspense
+          fallback={
+            <div className="min-h-96 rounded-[1.35rem] bg-white/72 shadow-sm" />
+          }
+        >
+          <CatalogDiscovery collections={collections} />
+        </Suspense>
       </Container>
     </main>
   );

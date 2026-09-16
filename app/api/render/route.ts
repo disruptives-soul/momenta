@@ -103,6 +103,28 @@ function getProductsZipFileName(templates: InvitationTemplate[]) {
   return `momenta-files-${shortId}.zip`;
 }
 
+function getUniqueZipFileName(fileName: string, usedFileNames: Set<string>) {
+  if (!usedFileNames.has(fileName)) {
+    usedFileNames.add(fileName);
+    return fileName;
+  }
+
+  const extensionIndex = fileName.lastIndexOf(".");
+  const baseName =
+    extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
+  const extension = extensionIndex > 0 ? fileName.slice(extensionIndex) : "";
+  let copyIndex = 2;
+  let nextFileName = `${baseName}-${copyIndex}${extension}`;
+
+  while (usedFileNames.has(nextFileName)) {
+    copyIndex += 1;
+    nextFileName = `${baseName}-${copyIndex}${extension}`;
+  }
+
+  usedFileNames.add(nextFileName);
+  return nextFileName;
+}
+
 function normalizeData(data: RenderRequestBody["data"]): PersonalizationValues {
   return Object.fromEntries(
     Object.entries(data ?? {}).map(([key, value]) => [
@@ -230,9 +252,13 @@ export async function POST(request: Request) {
     let zip: Uint8Array;
 
     try {
+      const usedFileNames = new Set<string>();
       const pdfFiles = await Promise.all(
         validTemplates.map(async (item) => ({
-          name: getProductPdfFileName(item.template),
+          name: getUniqueZipFileName(
+            getProductPdfFileName(item.template),
+            usedFileNames,
+          ),
           bytes: await renderPersonalizedInvitationPdf(
             item.values,
             item.template,

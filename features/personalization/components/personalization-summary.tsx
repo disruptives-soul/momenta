@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/status-state";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
+import { saveCartSnapshot } from "@/features/cart/services/cart-storage";
 import { getProductForRenderingTemplate } from "@/features/products/services/product-catalog";
 import { TemplatePreview } from "@/features/rendering/components/template-preview";
 import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
-import type { TextElement } from "@/features/rendering/templates/template-types";
 import { loadPersonalizationDraft } from "../services/personalization-draft-storage";
 import {
+  createInitialPersonalizationDraft,
   demoPersonalizationProjectId,
   getDraftTemplateScene,
   type PersonalizationDraft,
@@ -23,31 +24,6 @@ type PersonalizationSummaryProps = {
   projectId: string;
 };
 
-type CartSnapshot = {
-  id: string;
-  product: {
-    id: string;
-    slug: string;
-    name: string;
-    pieceTypeName: string;
-    collectionSlug: string;
-    collectionName: string;
-    widthMm: number;
-    heightMm: number;
-    outputFormats: string[];
-  };
-  template: {
-    id: string;
-    printProfileId: string;
-    widthMm: number;
-    heightMm: number;
-  };
-  scene: TextElement[];
-  createdAt: string;
-};
-
-const cartStorageKey = "momenta:cart";
-
 function formatPhysicalSize(widthMm: number, heightMm: number) {
   if (widthMm >= 1000 || heightMm >= 1000) {
     return `${widthMm / 1000} x ${heightMm / 1000} m`;
@@ -56,20 +32,15 @@ function formatPhysicalSize(widthMm: number, heightMm: number) {
   return `${widthMm} x ${heightMm} mm`;
 }
 
-function saveCartSnapshot(snapshot: CartSnapshot) {
-  const current = window.sessionStorage.getItem(cartStorageKey);
-  const items = current ? (JSON.parse(current) as CartSnapshot[]) : [];
-  const nextItems = [...items, snapshot];
-
-  window.sessionStorage.setItem(cartStorageKey, JSON.stringify(nextItems));
-}
-
 function createCartSnapshotId(productId: string, templateId: string) {
   return `${productId}:${templateId}:${Date.now()}`;
 }
 
 export function PersonalizationSummary({ projectId }: PersonalizationSummaryProps) {
-  const [draft] = useState<PersonalizationDraft>(loadPersonalizationDraft);
+  const [draft, setDraft] = useState<PersonalizationDraft>(
+    createInitialPersonalizationDraft,
+  );
+  const [isHydrated, setIsHydrated] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const isValidProject = projectId === demoPersonalizationProjectId;
   const template = getRenderingTemplate(draft.templateId);
@@ -83,11 +54,22 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
     .join(" + ");
 
   useEffect(() => {
+    window.queueMicrotask(() => {
+      setDraft(loadPersonalizationDraft());
+      setIsHydrated(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     trackValidationEvent("review_viewed", {
       collectionSlug: draft.collectionSlug,
       productCode: draft.productCode,
     });
-  }, [draft.collectionSlug, draft.productCode]);
+  }, [draft.collectionSlug, draft.productCode, isHydrated]);
 
   if (!isValidProject || !template || !product) {
     return (
@@ -100,6 +82,18 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
         description="No encontramos una personalizacion disponible para revisar."
         title="Personalizacion no disponible"
       />
+    );
+  }
+
+  if (!isHydrated) {
+    return (
+      <Card className="mx-auto grid max-w-xl gap-3 text-center">
+        <p className="text-sm font-medium text-primary">Review</p>
+        <h1 className="text-3xl font-semibold">Preparando revision</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Estamos cargando la pieza personalizada antes de confirmar el carrito.
+        </p>
+      </Card>
     );
   }
 
@@ -120,6 +114,10 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
         widthMm: product.widthMm,
         heightMm: product.heightMm,
         outputFormats: product.outputFormats,
+        priceLabel: product.priceLabel,
+        previewAlt: product.prototype.previewAlt,
+        previewSrc: product.prototype.previewSrc,
+        visualFormat: product.prototype.visualFormat,
       },
       template: {
         id: template.id,
@@ -136,6 +134,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
       collectionSlug: product.collectionSlug,
       productCode: product.slug,
     });
+    window.location.assign("/cart");
   }
 
   const checklist = [
@@ -156,6 +155,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
     <div className="grid gap-6 lg:grid-cols-[0.9fr_0.75fr] lg:items-start">
       <div className="grid gap-4">
         <TemplatePreview
+          ariaLabel={`Vista previa de ${product.name} personalizado`}
           scene={scene}
           templateId={template.id}
           values={draft.valuesByTemplate[template.id] ?? draft.values}

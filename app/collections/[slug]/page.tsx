@@ -109,13 +109,20 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
           <div>
             <h2 className="text-2xl font-semibold">Que podes personalizar</h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              El diseno ya esta definido. El usuario solo completa los datos del
-              evento para mantener la experiencia simple.
+              El artwork base queda fijo. El usuario edita solo capas de texto
+              sobre la pieza: contenido, posicion, tamano, color y alineacion.
             </p>
           </div>
           <Card>
             <ul className="grid gap-3 text-sm md:grid-cols-2">
-              {collection.prototype?.customizableFields.map((field) => (
+              {[
+                "Contenido de textos",
+                "Posicion y tamano visual",
+                "Color dentro de paleta permitida",
+                "Alineacion",
+                "Duplicar o eliminar textos",
+                "Revision antes del carrito",
+              ].map((field) => (
                 <li
                   className="rounded-md border border-border bg-muted px-3 py-2"
                   key={field}
@@ -155,7 +162,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
               </EventLink>
             </Button>
           }
-          description="Completa los datos de la celebracion y revisa la vista previa antes de continuar."
+          description="Personaliza los textos, revisa la vista previa y agrega la pieza al carrito."
           title="Empeza con la Invitacion A3"
         />
       </Container>

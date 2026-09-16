@@ -26,9 +26,9 @@ import {
 import type { PrototypeGenerationState } from "../types/prototype-result-state";
 
 const generationMessages = [
-  "Estamos preparando tu invitación",
-  "Aplicando los datos de tu celebración",
-  "Tu vista previa está lista",
+  "Estamos preparando tu invitacion",
+  "Aplicando los datos de tu celebracion",
+  "Tu vista previa esta lista",
 ];
 
 type PreviewSimulationProps = {
@@ -114,8 +114,8 @@ export function PreviewSimulation({
             <Link href="/catalog">Volver al catalogo</Link>
           </Button>
         }
-        description="No encontramos una invitación disponible para mostrar."
-        title="Invitación no disponible"
+        description="No encontramos una invitacion disponible para mostrar."
+        title="Invitacion no disponible"
       />
     );
   }
@@ -125,13 +125,11 @@ export function PreviewSimulation({
       <ErrorState
         action={
           <Button asChild>
-            <Link href={editHref}>
-              Completar personalización
-            </Link>
+            <Link href={editHref}>Completar personalizacion</Link>
           </Button>
         }
-        description={`Faltan datos o hay valores inválidos: ${Object.keys(errors).join(", ")}.`}
-        title="Falta completar la personalización"
+        description={`Faltan datos o hay valores invalidos: ${Object.keys(errors).join(", ")}.`}
+        title="Falta completar la personalizacion"
       />
     );
   }
@@ -152,7 +150,7 @@ export function PreviewSimulation({
               Intentar nuevamente
             </Button>
             <Button asChild variant="secondary">
-              <Link href={`/projects/${projectId}/review`}>Volver a revisión</Link>
+              <Link href={`/projects/${projectId}/review`}>Volver a revision</Link>
             </Button>
           </div>
         }
@@ -171,11 +169,11 @@ export function PreviewSimulation({
             {generationMessages[messageIndex]}
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Esta es una vista previa de la experiencia. Todavía no se genera
-            ningún archivo final.
+            Esta es una vista previa de la experiencia. Todavia no se genera
+            ningun archivo final.
           </p>
         </div>
-        <div aria-label="Progreso de generación" className="grid gap-2">
+        <div aria-label="Progreso de generacion" className="grid gap-2">
           {generationMessages.map((message, index) => (
             <div
               className="flex items-center gap-3 rounded-md border border-border bg-muted p-3 text-left text-sm"
@@ -220,6 +218,7 @@ export function PreviewSimulation({
             </span>
           </div>
           <TemplatePreview
+            ariaLabel={`Vista previa de ${activeProduct?.name ?? getTemplateLabel(activeTemplate.id)} personalizado`}
             layout={getDraftTemplateLayout(draft, activeTemplate.id)}
             scene={draft.scenes[activeTemplate.id]}
             templateId={activeTemplate.id}
@@ -230,11 +229,9 @@ export function PreviewSimulation({
       <Card className="grid gap-5">
         <div>
           <p className="text-sm font-medium text-primary">
-            Tu vista previa está lista
+            Tu vista previa esta lista
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">
-            Revisa el diseÃ±o
-          </h1>
+          <h1 className="mt-2 text-3xl font-semibold">Revisa el diseno</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             Revisa que todos los textos personalizados esten correctos antes de
             continuar.
@@ -248,7 +245,7 @@ export function PreviewSimulation({
             }}
             type="button"
           >
-            AÃ±adir al carrito
+            Anadir al carrito
           </Button>
           <Button
             asChild
@@ -260,7 +257,7 @@ export function PreviewSimulation({
             <Link href={editHref}>Editar personalizacion</Link>
           </Button>
           <Button asChild variant="ghost">
-            <Link href={`/projects/${projectId}/review`}>Volver a revisión</Link>
+            <Link href={`/projects/${projectId}/review`}>Volver a revision</Link>
           </Button>
           <Button
             onClick={() => {

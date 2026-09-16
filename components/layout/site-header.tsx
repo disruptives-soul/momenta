@@ -2,18 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ShoppingBag } from "lucide-react";
+import {
+  cartUpdatedEventName,
+  getCartSnapshotCount,
+} from "@/features/cart/services/cart-storage";
 import { Container } from "./container";
 
 const navigation = [
   { href: "/catalog?type=invitation", label: "Invitaciones" },
-  { href: "/catalog?type=banner", label: "Flyers" },
+  { href: "/catalog?type=banner", label: "Banners" },
   { href: "/catalog?type=stickers", label: "Stickers" },
   { href: "/collections/space-birthday", label: "Temas" },
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    function syncCartCount() {
+      setCartCount(getCartSnapshotCount());
+    }
+
+    syncCartCount();
+    window.addEventListener("storage", syncCartCount);
+    window.addEventListener(cartUpdatedEventName, syncCartCount);
+
+    return () => {
+      window.removeEventListener("storage", syncCartCount);
+      window.removeEventListener(cartUpdatedEventName, syncCartCount);
+    };
+  }, []);
 
   if (
     pathname === "/collections/space-birthday/personalize" ||
@@ -46,12 +67,12 @@ export function SiteHeader() {
 
         <Link
           className="inline-flex h-8 items-center gap-2 rounded-full bg-white px-3 text-sm font-semibold shadow-sm"
-          href="/projects/demo-space-birthday/review"
+          href="/cart"
         >
           <ShoppingBag aria-hidden="true" className="size-4" />
           Carrito
           <span className="grid size-5 place-items-center rounded-full bg-primary text-xs text-primary-foreground">
-            0
+            {cartCount}
           </span>
         </Link>
       </Container>
