@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import sharp from "sharp";
 import {
   createStorageProvider,
   getStorageProviderName,
@@ -440,15 +441,6 @@ async function createAutoTextElementsFromPreview(
   master: Uint8Array,
   preview: Uint8Array,
 ): Promise<AutoTextElement[]> {
-  let sharp: typeof import("sharp").default;
-
-  try {
-    sharp = (await import("sharp")).default;
-  } catch (error) {
-    console.error("Sharp unavailable", error);
-    throw new Error("Sharp unavailable for preview text layer detection.");
-  }
-
   const masterImage = sharp(master);
   const metadata = await masterImage.metadata();
   const sourceWidth = metadata.width ?? 0;
