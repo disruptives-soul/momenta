@@ -396,15 +396,19 @@ function getSupabaseConfig() {
   };
 }
 
+function isMissingSupabaseTable(status: number, body: string) {
+  return status === 404 && body.includes("PGRST205");
+}
+
 async function upsertRows(table: string, rows: unknown[]) {
   if (rows.length === 0) {
-    return;
+    return { skipped: false as const };
   }
 
   const config = getSupabaseConfig();
 
   if (!config) {
-    return;
+    return { skipped: true as const, reason: "missing_config" as const };
   }
 
   const response = await fetch(`${config.url}/rest/v1/${table}`, {
@@ -418,11 +422,28 @@ async function upsertRows(table: string, rows: unknown[]) {
     body: JSON.stringify(rows),
   });
 
+  if (response.ok) {
+    return { skipped: false as const };
+  }
+
+  const body = await response.text();
+
+  if (isMissingSupabaseTable(response.status, body)) {
+    return {
+      skipped: true as const,
+      reason: "missing_table" as const,
+      table,
+      detail: body,
+    };
+  }
+
   if (!response.ok) {
     throw new Error(
-      `Supabase upsert failed for ${table}: ${response.status} ${await response.text()}`,
+      `Supabase upsert failed for ${table}: ${response.status} ${body}`,
     );
   }
+
+  return { skipped: false as const };
 }
 
 async function saveCatalogMetadataToSupabase(
@@ -436,7 +457,7 @@ async function saveCatalogMetadataToSupabase(
 
   const syncedAt = new Date().toISOString();
 
-  await upsertRows("momenta_catalog_collections", [
+  const collections = await upsertRows("momenta_catalog_collections", [
     {
       slug: payload.collection.slug,
       name: payload.collection.name,
@@ -445,7 +466,11 @@ async function saveCatalogMetadataToSupabase(
     },
   ]);
 
-  await upsertRows("momenta_catalog_products", [
+  if (collections.skipped) {
+    return collections;
+  }
+
+  const products = await upsertRows("momenta_catalog_products", [
     {
       id: `${payload.collection.slug}:${payload.product.slug}`,
       collection_slug: payload.collection.slug,
@@ -466,7 +491,11 @@ async function saveCatalogMetadataToSupabase(
     },
   ]);
 
-  await upsertRows("momenta_catalog_templates", [
+  if (products.skipped) {
+    return products;
+  }
+
+  const templates = await upsertRows("momenta_catalog_templates", [
     {
       id: payload.template.id,
       collection_slug: payload.collection.slug,
@@ -475,6 +504,10 @@ async function saveCatalogMetadataToSupabase(
       updated_at: syncedAt,
     },
   ]);
+
+  if (templates.skipped) {
+    return templates;
+  }
 
   return { skipped: false as const };
 }
