@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { tmpdir } from "node:os";
 import sharp from "sharp";
 import {
   createStorageProvider,
@@ -77,6 +78,9 @@ type AutoTextElement = {
   id: string;
   label: string;
   text: string;
+  source: "ocr";
+  confidence: number;
+  needsReview: boolean;
   x: number;
   y: number;
   width: number;
@@ -90,6 +94,29 @@ type AutoTextElement = {
   maxLines: number;
   lineHeight: number;
   letterSpacing: number;
+};
+
+type DetectedTextBox = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  area: number;
+  width: number;
+  height: number;
+};
+
+type CropBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type OcrTextResult = {
+  text: string;
+  confidence: number;
+  needsReview: boolean;
 };
 
 function getErrorMessage(error: unknown) {
@@ -354,6 +381,106 @@ function getEstimatedTextColor(
   return rgbToHex(red / count, green / count, blue / count);
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getCropBounds(
+  box: DetectedTextBox,
+  scaleX: number,
+  scaleY: number,
+  sourceWidth: number,
+  sourceHeight: number,
+): CropBounds {
+  const paddingX = Math.max(12, Math.round(box.width * scaleX * 0.22));
+  const paddingY = Math.max(8, Math.round(box.height * scaleY * 0.58));
+  const left = clamp(Math.floor(box.minX * scaleX - paddingX), 0, sourceWidth - 1);
+  const top = clamp(Math.floor(box.minY * scaleY - paddingY), 0, sourceHeight - 1);
+  const right = clamp(Math.ceil((box.maxX + 1) * scaleX + paddingX), left + 1, sourceWidth);
+  const bottom = clamp(Math.ceil((box.maxY + 1) * scaleY + paddingY), top + 1, sourceHeight);
+
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
+async function createOcrCrop(preview: Uint8Array, crop: CropBounds) {
+  const upscale = crop.width < 900 ? Math.min(4, Math.max(2, Math.ceil(900 / crop.width))) : 1;
+
+  return sharp(preview)
+    .extract(crop)
+    .resize({
+      width: Math.min(1800, crop.width * upscale),
+      height: Math.min(900, crop.height * upscale),
+      fit: "inside",
+      withoutEnlargement: false,
+    })
+    .grayscale()
+    .normalize()
+    .sharpen()
+    .png()
+    .toBuffer();
+}
+
+function normalizeOcrText(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/[|_~`]/g, "")
+    .trim();
+}
+
+async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
+  const fallback = crops.map(() => ({
+    text: "",
+    confidence: 0,
+    needsReview: true,
+  }));
+
+  if (crops.length === 0) {
+    return [];
+  }
+
+  try {
+    const tesseract = await import("tesseract.js");
+    const worker = await tesseract.createWorker("eng", undefined, {
+      cachePath: tmpdir(),
+    });
+
+    try {
+      await worker.setParameters({
+        tessedit_pageseg_mode: tesseract.PSM.SINGLE_LINE,
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300",
+      });
+
+      const results: OcrTextResult[] = [];
+
+      for (const crop of crops) {
+        const result = await worker.recognize(crop);
+        const confidence = Math.round(result.data.confidence ?? 0);
+        const text = normalizeOcrText(result.data.text ?? "");
+        const hasUsableText = text.length > 0 && confidence >= 60;
+
+        results.push({
+          text: hasUsableText ? text : "",
+          confidence,
+          needsReview: !hasUsableText,
+        });
+      }
+
+      return results;
+    } finally {
+      await worker.terminate();
+    }
+  } catch (error) {
+    console.error("Tesseract OCR failed", error);
+    return fallback;
+  }
+}
+
 function dilateMask(mask: Uint8Array, width: number, height: number) {
   const output = new Uint8Array(mask.length);
   const radiusX = Math.max(8, Math.round(width * 0.018));
@@ -442,11 +569,16 @@ async function createAutoTextElementsFromPreview(
   preview: Uint8Array,
 ): Promise<AutoTextElement[]> {
   const masterImage = sharp(master);
-  const metadata = await masterImage.metadata();
-  const sourceWidth = metadata.width ?? 0;
-  const sourceHeight = metadata.height ?? 0;
+  const [masterMetadata, previewMetadata] = await Promise.all([
+    masterImage.metadata(),
+    sharp(preview).metadata(),
+  ]);
+  const sourceWidth = masterMetadata.width ?? 0;
+  const sourceHeight = masterMetadata.height ?? 0;
+  const previewWidth = previewMetadata.width ?? sourceWidth;
+  const previewHeight = previewMetadata.height ?? sourceHeight;
 
-  if (sourceWidth <= 0 || sourceHeight <= 0) {
+  if (sourceWidth <= 0 || sourceHeight <= 0 || previewWidth <= 0 || previewHeight <= 0) {
     return [];
   }
 
@@ -481,11 +613,13 @@ async function createAutoTextElementsFromPreview(
   const groupedMask = dilateMask(mask, analysisWidth, analysisHeight);
   const scaleX = sourceWidth / analysisWidth;
   const scaleY = sourceHeight / analysisHeight;
+  const previewScaleX = previewWidth / analysisWidth;
+  const previewScaleY = previewHeight / analysisHeight;
   const minWidth = analysisWidth * 0.025;
   const minHeight = analysisHeight * 0.004;
   const maxComponentArea = analysisWidth * analysisHeight * 0.22;
 
-  return findMaskComponents(groupedMask, analysisWidth, analysisHeight)
+  const boxes = findMaskComponents(groupedMask, analysisWidth, analysisHeight)
     .map((box) => ({
       ...box,
       width: box.maxX - box.minX + 1,
@@ -499,17 +633,35 @@ async function createAutoTextElementsFromPreview(
       box.height <= analysisHeight * 0.35
     ))
     .sort((a, b) => (a.minY === b.minY ? a.minX - b.minX : a.minY - b.minY))
-    .slice(0, 12)
+    .slice(0, 12);
+
+  const ocrCrops = await Promise.all(
+    boxes.map((box) => createOcrCrop(
+      preview,
+      getCropBounds(box, previewScaleX, previewScaleY, previewWidth, previewHeight),
+    )),
+  );
+  const ocrResults = await recognizeTextCrops(ocrCrops);
+
+  return boxes
     .map((box, index) => {
       const x = ((box.minX + box.maxX) / 2) * scaleX;
       const y = (box.minY + box.height * 0.82) * scaleY;
       const width = Math.max(120, box.width * scaleX * 1.18);
       const fontSize = Math.min(140, Math.max(32, box.height * scaleY * 0.72));
+      const ocr = ocrResults[index] ?? {
+        text: "",
+        confidence: 0,
+        needsReview: true,
+      };
 
       return {
         id: `auto-text-${index + 1}`,
         label: `Campo editable ${index + 1}`,
-        text: "",
+        text: ocr.text,
+        source: "ocr",
+        confidence: ocr.confidence,
+        needsReview: ocr.needsReview,
         x: Math.round(x),
         y: Math.round(y),
         width: Math.round(width),
@@ -591,6 +743,30 @@ function getProductObject(
     printProfile: payload.printProfile,
     templateId: payload.template.id,
     syncedAt: new Date().toISOString(),
+  };
+}
+
+function getOcrStats(textElements: unknown[]) {
+  let ocrTextCount = 0;
+  let needsReviewCount = 0;
+
+  for (const element of textElements) {
+    if (!isRecord(element)) {
+      continue;
+    }
+
+    if (typeof element.text === "string" && element.text.trim() !== "") {
+      ocrTextCount += 1;
+    }
+
+    if (element.needsReview === true) {
+      needsReviewCount += 1;
+    }
+  }
+
+  return {
+    ocrTextCount,
+    needsReviewCount,
   };
 }
 
@@ -836,6 +1012,7 @@ export async function POST(request: Request) {
       storageName,
     );
     const catalogStatus = getCatalogStatus(payload);
+    const ocrStats = getOcrStats(templateObject.textElements);
 
     revalidateCatalogPaths(payload);
 
@@ -846,6 +1023,7 @@ export async function POST(request: Request) {
       templateId: payload.template.id,
       catalogStatus,
       textElementCount: templateObject.textElements.length,
+      ...ocrStats,
       storage: storageName,
       keys,
       createdKeys,

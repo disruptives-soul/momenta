@@ -38,6 +38,29 @@ function mmToPixels(mm: number, ppi: number) {
   return Math.round((mm / 25.4) * ppi);
 }
 
+function getAutoTextNumber(
+  element: HeadlessTemplateObject["textElements"][number],
+  index: number,
+) {
+  const match = element.id.match(/^auto-text-(\d+)$/);
+
+  return match ? Number(match[1]) : index + 1;
+}
+
+function isAutoDetectedText(
+  element: HeadlessTemplateObject["textElements"][number],
+) {
+  return element.id.startsWith("auto-text-");
+}
+
+function isLegacyAutoPlaceholder(value?: string) {
+  return typeof value === "string" && /^Texto(?: detectado)?\s*\d+$/i.test(value.trim());
+}
+
+function clampAutoFontSize(value: number) {
+  return Math.min(140, Math.max(24, value));
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -134,10 +157,21 @@ function normalizeField(
   const fallbackFont = defaultTextFonts[0];
   const x = element.x ?? widthPx / 2;
   const y = element.y ?? heightPx * (0.25 + index * 0.12);
+  const isAutoText = isAutoDetectedText(element);
+  const autoTextNumber = getAutoTextNumber(element, index);
+  const rawFontSize =
+    element.fontSize ?? Math.max(72, Math.round(heightPx * 0.035));
+  const fontSize = isAutoText ? clampAutoFontSize(rawFontSize) : rawFontSize;
+  const defaultValue =
+    isAutoText && isLegacyAutoPlaceholder(element.text)
+      ? ""
+      : element.text ?? (isAutoText ? "" : "Nuevo texto");
 
   return {
-    label: element.label ?? `Texto ${index + 1}`,
-    defaultValue: element.text ?? "Nuevo texto",
+    label: isAutoText
+      ? `Campo editable ${autoTextNumber}`
+      : element.label ?? `Texto ${index + 1}`,
+    defaultValue,
     editable: true,
     x,
     y,
@@ -145,8 +179,8 @@ function normalizeField(
     fontFamily: element.fontFamily ?? fallbackFont.value,
     pdfFont: element.pdfFont ?? fallbackFont.pdfFont,
     fontWeight: element.fontWeight,
-    fontSize: element.fontSize ?? Math.max(72, Math.round(heightPx * 0.035)),
-    minFontSize: element.minFontSize ?? 32,
+    fontSize,
+    minFontSize: Math.min(element.minFontSize ?? 32, fontSize),
     fill: element.fill ?? "#202124",
     opacity: element.opacity ?? 1,
     align: element.align ?? "center",

@@ -77,6 +77,26 @@ function getTemplateDefaults(template: InvitationTemplate): PersonalizationValue
   );
 }
 
+function isLegacyAutoPlaceholderText(element: TextElement) {
+  return (
+    element.id.startsWith("auto-text-") &&
+    /^Texto(?: detectado)?\s*\d+$/i.test(element.text.trim())
+  );
+}
+
+function getDraftSceneForTemplate(
+  draft: PersonalizationDraft,
+  template: InvitationTemplate,
+) {
+  const existingScene = draft.scenes[template.id];
+
+  if (!existingScene || existingScene.some(isLegacyAutoPlaceholderText)) {
+    return createTextSceneFromTemplate(template);
+  }
+
+  return existingScene;
+}
+
 function scopeDraftToProduct(
   draft: PersonalizationDraft,
   product: PrototypeProduct,
@@ -84,6 +104,7 @@ function scopeDraftToProduct(
 ): PersonalizationDraft {
   const templateValues =
     draft.valuesByTemplate[template.id] ?? getTemplateDefaults(template);
+  const templateScene = getDraftSceneForTemplate(draft, template);
 
   return {
     ...draft,
@@ -101,8 +122,7 @@ function scopeDraftToProduct(
     },
     scenes: {
       ...draft.scenes,
-      [template.id]:
-        draft.scenes[template.id] ?? createTextSceneFromTemplate(template),
+      [template.id]: templateScene,
     },
     productSnapshot: product,
     templateSnapshot: template,
