@@ -45,39 +45,35 @@ function wrapSceneText(value: string, element: TextElement) {
     8,
     Math.floor(element.width / (fontSize * 0.54)),
   );
-  const words = value.trim().split(/\s+/).filter(Boolean);
-
-  if (element.maxLines === 1 || words.length === 0) {
-    return [value.trim()];
-  }
-
   const lines: string[] = [];
-  let currentLine = "";
 
-  for (const word of words) {
-    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+  for (const paragraph of value.split(/\r?\n/)) {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    let currentLine = "";
 
-    if (nextLine.length <= maxCharactersPerLine) {
-      currentLine = nextLine;
+    if (words.length === 0) {
+      lines.push("");
       continue;
+    }
+
+    for (const word of words) {
+      const nextLine = currentLine ? `${currentLine} ${word}` : word;
+
+      if (!currentLine || nextLine.length <= maxCharactersPerLine) {
+        currentLine = nextLine;
+        continue;
+      }
+
+      lines.push(currentLine);
+      currentLine = word;
     }
 
     if (currentLine) {
       lines.push(currentLine);
     }
-
-    currentLine = word;
-
-    if (lines.length === element.maxLines - 1) {
-      break;
-    }
   }
 
-  if (currentLine && lines.length < element.maxLines) {
-    lines.push(currentLine);
-  }
-
-  return lines;
+  return lines.length > 0 ? lines : [value.trim()];
 }
 
 function renderSceneTextElement(element: TextElement) {

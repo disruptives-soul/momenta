@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, CreditCard, Download, LockKeyhole } from "lucide-react";
+import { CheckCircle2, CreditCard, LockKeyhole } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,10 +14,11 @@ import {
   loadCartSnapshots,
   type CartSnapshot,
 } from "../services/cart-storage";
+import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
+import { localPurchasedProjectRepository } from "@/features/purchased-projects/services/local-purchased-project-repository";
+import { createPurchasedProjectFromCartSnapshot } from "@/features/purchased-projects/services/purchased-project-lifecycle";
 
 const lastOrderStorageKey = "momenta:last-order";
-
-type ZipDownloadState = "idle" | "downloading" | "completed" | "failed";
 
 function getProductPrice(product: CartSnapshot["product"]) {
   if (!product.priceLabel) {
@@ -38,38 +39,11 @@ function formatMoney(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-function getDownloadFileName(response: Response) {
-  const disposition = response.headers.get("Content-Disposition");
-  const match = disposition?.match(/filename="(?<fileName>[^"]+)"/);
-
-  return match?.groups?.fileName ?? "momenta-files.zip";
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const downloadUrl = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  link.href = downloadUrl;
-  link.download = fileName;
-  link.rel = "noopener";
-  link.style.display = "none";
-
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  window.setTimeout(() => {
-    window.URL.revokeObjectURL(downloadUrl);
-  }, 30_000);
-}
-
 export function CartCheckoutView() {
   const router = useRouter();
   const [items, setItems] = useState<CartSnapshot[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [zipDownloadState, setZipDownloadState] =
-    useState<ZipDownloadState>("idle");
 
   useEffect(() => {
     window.queueMicrotask(() => {
@@ -83,16 +57,33 @@ export function CartCheckoutView() {
     0,
   );
 
-  function confirmOrder() {
+  async function confirmOrder() {
     if (items.length === 0) {
       return;
     }
 
     setIsConfirming(true);
 
+    const now = new Date();
+    const projects = items.map((item) =>
+      createPurchasedProjectFromCartSnapshot(item, now),
+    );
+
+    await Promise.all(
+      projects.map(async (project) => {
+        await localPurchasedProjectRepository.create(project);
+        trackValidationEvent("post_purchase_project_created", {
+          productId: project.productId,
+          projectId: project.id,
+          templateId: project.templateId,
+        });
+      }),
+    );
+
     const order = {
       id: `demo-${Date.now()}`,
       items,
+      projectIds: projects.map((project) => project.id),
       createdAt: new Date().toISOString(),
     };
 
@@ -102,46 +93,6 @@ export function CartCheckoutView() {
       clearCartSnapshots();
       router.push("/checkout/success");
     }, 450);
-  }
-
-  async function downloadZip() {
-    if (items.length === 0) {
-      return;
-    }
-
-    setZipDownloadState("downloading");
-
-    try {
-      const response = await fetch("/api/render", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          format: "pdf",
-          templates: items.map((item) => ({
-            templateId: item.template.id,
-            data: {},
-            scene: item.scene,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("ZIP render failed.");
-      }
-
-      const blob = await response.blob();
-
-      if (!blob.size) {
-        throw new Error("Empty ZIP.");
-      }
-
-      downloadBlob(blob, getDownloadFileName(response));
-      setZipDownloadState("completed");
-    } catch {
-      setZipDownloadState("failed");
-    }
   }
 
   if (!isHydrated) {
@@ -186,9 +137,8 @@ export function CartCheckoutView() {
             Pagar producto personalizado
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Confirma el producto, revisa el total y descarga el ZIP con los PDFs
-            finales. En este MVP el pago es simulado y no se realiza ningun
-            cobro real.
+            Confirma el producto y revisa el total. La descarga del ZIP se
+            habilita despues de confirmar el pago demo.
           </p>
         </div>
 
@@ -261,8 +211,8 @@ export function CartCheckoutView() {
         <div>
           <h2 className="text-2xl font-semibold">Resumen de pago</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            El ZIP se descarga desde este checkout e incluye un PDF por producto
-            personalizado.
+            Al confirmar se prepara la pantalla de pedido con la descarga de los
+            PDFs finales.
           </p>
         </div>
 
@@ -302,17 +252,6 @@ export function CartCheckoutView() {
 
         <Button
           className="rounded-full"
-          disabled={zipDownloadState === "downloading"}
-          onClick={downloadZip}
-          type="button"
-        >
-          <Download aria-hidden="true" />
-          {zipDownloadState === "downloading"
-            ? "Preparando ZIP"
-            : "Descargar ZIP"}
-        </Button>
-        <Button
-          className="rounded-full"
           disabled={isConfirming}
           onClick={confirmOrder}
           type="button"
@@ -324,16 +263,6 @@ export function CartCheckoutView() {
         <Button asChild className="rounded-full" variant="secondary">
           <Link href="/cart">Volver al carrito</Link>
         </Button>
-        {zipDownloadState === "completed" ? (
-          <p className="rounded-xl border border-success/30 bg-success/10 p-3 text-sm text-success">
-            ZIP generado y descargado correctamente.
-          </p>
-        ) : null}
-        {zipDownloadState === "failed" ? (
-          <p className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-            No pudimos generar el ZIP. Revisa las piezas o intenta nuevamente.
-          </p>
-        ) : null}
       </Card>
     </div>
   );

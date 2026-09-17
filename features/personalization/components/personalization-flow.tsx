@@ -20,6 +20,10 @@ import {
   savePersonalizationDraft,
 } from "../services/personalization-draft-storage";
 import {
+  clampTextElementToSafeArea,
+  createCenteredTextElementInSafeArea,
+} from "../services/text-scene-safe-area";
+import {
   createInitialPersonalizationDraft,
   demoPersonalizationProjectId,
   type PersonalizationDraft,
@@ -191,7 +195,9 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
       ...currentDraft,
       scenes: {
         ...currentDraft.scenes,
-        [currentDraft.templateId]: nextScene,
+        [currentDraft.templateId]: nextScene.map((element) =>
+          clampTextElementToSafeArea(element, activeTemplate),
+        ),
       },
     }));
   }
@@ -210,7 +216,10 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
   function addTextElement() {
     setTextScene([
       ...activeScene,
-      createDefaultTextElement(activeTemplate, activeScene.length + 1),
+      createCenteredTextElementInSafeArea(
+        createDefaultTextElement(activeTemplate, activeScene.length + 1),
+        activeTemplate,
+      ),
     ]);
   }
 
@@ -235,20 +244,6 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
 
   function deleteTextElement(elementId: string) {
     setTextScene(activeScene.filter((element) => element.id !== elementId));
-  }
-
-  function reorderTextElement(elementId: string, direction: -1 | 1) {
-    const index = activeScene.findIndex((element) => element.id === elementId);
-    const nextIndex = index + direction;
-
-    if (index < 0 || nextIndex < 0 || nextIndex >= activeScene.length) {
-      return;
-    }
-
-    const nextScene = [...activeScene];
-    const [element] = nextScene.splice(index, 1);
-    nextScene.splice(nextIndex, 0, element);
-    setTextScene(nextScene);
   }
 
   function undo() {
@@ -329,7 +324,6 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
         onDeleteTextElement={deleteTextElement}
         onDuplicateTextElement={duplicateTextElement}
         onRedo={redo}
-        onReorderTextElement={reorderTextElement}
         onUndo={undo}
         onUpdateTextElement={updateTextElement}
         productName={activeProduct.name}

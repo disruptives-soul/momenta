@@ -320,32 +320,13 @@ function getAlignedTextX(
 
 function fitElementFontSize(
   element: TextElement,
-  font: PDFFont,
-  maxWidthPt: number,
+  _font: PDFFont,
+  _maxWidthPt: number,
   template: RuntimeInvitationTemplate,
-  pageWidthPt: number,
+  _pageWidthPt: number,
   pageHeightPt: number,
 ) {
-  let fontSize = pxFontSizeToPt(element.fontSize, template, pageHeightPt);
-  const minFontSize = pxFontSizeToPt(element.minFontSize, template, pageHeightPt);
-  const letterSpacingPt = pxToPdfWidth(
-    element.letterSpacing ?? 0,
-    template,
-    pageWidthPt,
-  );
-
-  if (element.maxLines > 1) {
-    return fontSize;
-  }
-
-  while (
-    fontSize > minFontSize &&
-    getTrackedTextWidth(element.text, font, fontSize, letterSpacingPt) > maxWidthPt
-  ) {
-    fontSize -= 0.5;
-  }
-
-  return Math.max(fontSize, minFontSize);
+  return pxFontSizeToPt(element.fontSize, template, pageHeightPt);
 }
 
 function wrapPdfElementText(
@@ -355,39 +336,39 @@ function wrapPdfElementText(
   maxWidthPt: number,
   letterSpacingPt = 0,
 ) {
-  const words = element.text.trim().split(/\s+/).filter(Boolean);
-
-  if (element.maxLines === 1 || words.length === 0) {
-    return [element.text.trim()];
-  }
-
   const lines: string[] = [];
-  let currentLine = "";
 
-  for (const word of words) {
-    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+  for (const paragraph of element.text.split(/\r?\n/)) {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    let currentLine = "";
 
-    if (getTrackedTextWidth(nextLine, font, fontSize, letterSpacingPt) <= maxWidthPt) {
-      currentLine = nextLine;
+    if (words.length === 0) {
+      lines.push("");
       continue;
+    }
+
+    for (const word of words) {
+      const nextLine = currentLine ? `${currentLine} ${word}` : word;
+
+      if (
+        !currentLine ||
+        getTrackedTextWidth(nextLine, font, fontSize, letterSpacingPt) <=
+          maxWidthPt
+      ) {
+        currentLine = nextLine;
+        continue;
+      }
+
+      lines.push(currentLine);
+      currentLine = word;
     }
 
     if (currentLine) {
       lines.push(currentLine);
     }
-
-    currentLine = word;
-
-    if (lines.length === element.maxLines - 1) {
-      break;
-    }
   }
 
-  if (currentLine && lines.length < element.maxLines) {
-    lines.push(currentLine);
-  }
-
-  return lines;
+  return lines.length > 0 ? lines : [element.text.trim()];
 }
 
 function getAlignedElementTextX(

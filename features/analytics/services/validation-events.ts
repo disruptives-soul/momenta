@@ -36,6 +36,13 @@ export const validationEvents = [
   "purchase_intent_confirmed",
   "mock_checkout_completed",
   "premium_feedback_submitted",
+  "post_purchase_project_created",
+  "post_purchase_editor_opened",
+  "post_purchase_edit_saved",
+  "project_locked_viewed",
+  "reactivation_cta_clicked",
+  "project_reactivated",
+  "post_purchase_pdf_downloaded",
 ] as const;
 
 export type ValidationEventName = (typeof validationEvents)[number];

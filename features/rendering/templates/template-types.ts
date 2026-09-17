@@ -136,6 +136,9 @@ export type InvitationTemplate = {
   productCode: string;
   widthMm: number;
   heightMm: number;
+  safeArea?: {
+    insetMm?: number;
+  };
   printProfile: TemplatePrintProfile;
   widthPx?: number;
   heightPx?: number;

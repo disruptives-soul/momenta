@@ -119,5 +119,6 @@ export function createDefaultTextElement(
     y: centerY,
     width: Math.min(900, constraints.bounds.width * 0.5),
     ...constraints.defaults,
+    maxLines: Math.max(4, constraints.defaults.maxLines),
   };
 }

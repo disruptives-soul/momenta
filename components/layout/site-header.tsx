@@ -15,6 +15,7 @@ const navigation = [
   { href: "/catalog?type=banner", label: "Banners" },
   { href: "/catalog?type=stickers", label: "Stickers" },
   { href: "/collections/space-birthday", label: "Temas" },
+  { href: "/account/designs", label: "Mis disenos" },
 ];
 
 export function SiteHeader() {
@@ -38,7 +39,8 @@ export function SiteHeader() {
 
   if (
     pathname === "/collections/space-birthday/personalize" ||
-    (pathname.startsWith("/products/") && pathname.endsWith("/personalize"))
+    (pathname.startsWith("/products/") && pathname.endsWith("/personalize")) ||
+    (pathname.startsWith("/account/designs/") && pathname.endsWith("/edit"))
   ) {
     return null;
   }

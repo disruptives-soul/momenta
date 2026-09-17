@@ -10,6 +10,8 @@ export type ValidationEventPayload = {
   price?: number | string;
   product?: string;
   productCode?: string;
+  productId?: string;
+  templateId?: string;
   step?: string;
   field?: string;
   feedback?: string;
