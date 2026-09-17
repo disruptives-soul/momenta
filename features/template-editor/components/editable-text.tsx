@@ -26,11 +26,19 @@ type CanvasSize = {
   height: number;
 };
 
+type GuideBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 type EditableTextProps = {
   element: TextElement;
   scale: TemplateScale;
   safeArea: TemplateSafeArea;
   canvasSize: CanvasSize;
+  guideBoxes: GuideBox[];
   isActive: boolean;
   isEditing: boolean;
   isHovered: boolean;
@@ -38,7 +46,7 @@ type EditableTextProps = {
   onChange: (elementId: string, patch: Partial<TextElement>) => void;
   onGuidesChange: (guides: CanvasAlignmentGuide[]) => void;
   onHoverChange: (elementId: string | null) => void;
-  onSelect: (elementId: string) => void;
+  onSelect: (elementId: string, additive?: boolean) => void;
   onStartEditing: (element: TextElement) => void;
 };
 
@@ -46,6 +54,7 @@ export function EditableText({
   element,
   scale,
   canvasSize,
+  guideBoxes,
   isActive,
   isEditing,
   isHovered,
@@ -86,7 +95,12 @@ export function EditableText({
       height: scaledHeight,
       rotation: element.rotation ?? 0,
     });
-    const smartGuides = getSmartCanvasGuides(box, canvasSize, safeArea);
+    const smartGuides = getSmartCanvasGuides(
+      box,
+      canvasSize,
+      safeArea,
+      guideBoxes,
+    );
     const snappedBox = {
       ...box,
       x: box.x + smartGuides.dx,
@@ -182,7 +196,7 @@ export function EditableText({
     pendingLayoutRef.current = layout;
     normalizeNodeTransform(node, layout);
     onGuidesChange(
-      getSmartCanvasGuides(nextBox, canvasSize, safeArea).guides,
+      getSmartCanvasGuides(nextBox, canvasSize, safeArea, guideBoxes).guides,
     );
 
     return layout;
@@ -221,6 +235,18 @@ export function EditableText({
           y={y}
         />
       ) : null}
+      {isEditing ? (
+        <Rect
+          height={scaledHeight}
+          listening={false}
+          rotation={element.rotation ?? 0}
+          stroke="#0f766e"
+          strokeWidth={2}
+          width={scaledWidth}
+          x={x}
+          y={y}
+        />
+      ) : null}
       <Text
         align={element.align}
         dragBoundFunc={getDragBoundPosition}
@@ -232,7 +258,7 @@ export function EditableText({
         letterSpacing={element.letterSpacing ?? 0}
         lineHeight={lineHeight}
         listening={!disabled}
-        onClick={() => !disabled && onSelect(element.id)}
+        onClick={(event) => !disabled && onSelect(element.id, event.evt.shiftKey)}
         onDblClick={() => !disabled && onStartEditing(element)}
         onDragEnd={(event) => commitLayoutFromNode(event.target as Konva.Text)}
         onMouseEnter={(event) => {
@@ -271,7 +297,13 @@ export function EditableText({
           borderDash={[6, 4]}
           borderStroke="#0f766e"
           boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 36 || newBox.height < 18) {
+            const minimumFontSize = getScaledFontSize(element.minFontSize, scale);
+            const minimumWidth = Math.max(48, minimumFontSize * 1.6);
+
+            if (
+              newBox.width < minimumWidth ||
+              newBox.height < minimumFontSize
+            ) {
               return oldBox;
             }
 

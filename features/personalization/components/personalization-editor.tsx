@@ -23,6 +23,13 @@ import type {
   TextSceneConstraints,
 } from "@/features/rendering/templates/template-types";
 import { PersonalizationCanvas } from "@/features/template-editor/components/personalization-canvas";
+import {
+  clampTextElementToSafeArea,
+  getSafeAreaShift,
+  getTemplateSafeArea,
+  getTextVisualBox,
+  type TemplateSafeArea,
+} from "../services/text-scene-safe-area";
 
 type PersonalizationEditorProps = {
   exitHref: string;
@@ -33,23 +40,36 @@ type PersonalizationEditorProps = {
   canUndo: boolean;
   canRedo: boolean;
   onUpdateTextElement: (elementId: string, patch: Partial<TextElement>) => void;
+  onUpdateTextElements: (
+    patches: Array<{ elementId: string; patch: Partial<TextElement> }>,
+  ) => void;
+  onSetScene: (scene: TextElement[]) => void;
   onAddTextElement: () => void;
-  onDuplicateTextElement: (elementId: string) => void;
-  onDeleteTextElement: (elementId: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onContinue: () => void;
 };
 
-const zoomLevels = [0.75, 0.9, 1, 1.15, 1.3];
-const alignmentActions: Array<{
+const zoomLevels = [0.5, 0.75, 0.9, 1, 1.3, 1.6, 2];
+const textAlignmentActions: Array<{
   align: TextElement["align"];
   icon: typeof AlignLeft;
   label: string;
 }> = [
-  { align: "left", icon: AlignLeft, label: "Alinear izquierda" },
-  { align: "center", icon: AlignCenter, label: "Alinear centro" },
-  { align: "right", icon: AlignRight, label: "Alinear derecha" },
+  { align: "left", icon: AlignLeft, label: "Texto izquierda" },
+  { align: "center", icon: AlignCenter, label: "Texto centro" },
+  { align: "right", icon: AlignRight, label: "Texto derecha" },
+];
+const positionAlignmentActions: Array<{
+  direction: "left" | "center" | "right" | "top" | "middle" | "bottom";
+  label: string;
+}> = [
+  { direction: "left", label: "Izq" },
+  { direction: "center", label: "Centro" },
+  { direction: "right", label: "Der" },
+  { direction: "top", label: "Arriba" },
+  { direction: "middle", label: "Medio" },
+  { direction: "bottom", label: "Abajo" },
 ];
 
 function isTextEditingTarget(target: EventTarget | null) {
@@ -68,6 +88,41 @@ function getShortText(value: string) {
   return value.length > 42 ? `${value.slice(0, 42).trim()}...` : value;
 }
 
+function getTemplatePpi(template: InvitationTemplate) {
+  return (
+    template.masterPpi ??
+    template.printProfile.designMasterPpi ??
+    template.printProfile.targetPpi ??
+    300
+  );
+}
+
+function fontPxToPt(value: number, template: InvitationTemplate) {
+  return (value / getTemplatePpi(template)) * 72;
+}
+
+function fontPtToPx(value: number, template: InvitationTemplate) {
+  return (value / 72) * getTemplatePpi(template);
+}
+
+function getUnionBox(boxes: TemplateSafeArea[]) {
+  const minX = Math.min(...boxes.map((box) => box.x));
+  const minY = Math.min(...boxes.map((box) => box.y));
+  const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+  const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 export function PersonalizationEditor({
   exitHref,
   productName,
@@ -77,22 +132,188 @@ export function PersonalizationEditor({
   canUndo,
   canRedo,
   onUpdateTextElement,
+  onUpdateTextElements,
+  onSetScene,
   onAddTextElement,
-  onDuplicateTextElement,
-  onDeleteTextElement,
   onUndo,
   onRedo,
   onContinue,
 }: PersonalizationEditorProps) {
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(
-    scene[0]?.id ?? null,
+  const [selectedElementIds, setSelectedElementIds] = useState<string[]>(
+    scene[0] ? [scene[0].id] : [],
   );
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
-  const [zoomIndex, setZoomIndex] = useState(2);
+  const [zoomIndex, setZoomIndex] = useState(3);
+  const [clipboardElements, setClipboardElements] = useState<TextElement[]>([]);
   const zoom = zoomLevels[zoomIndex];
+  const selectedElements = scene.filter((element) =>
+    selectedElementIds.includes(element.id),
+  );
   const selectedElement =
-    scene.find((element) => element.id === selectedElementId) ?? scene[0] ?? null;
-  const activeSelectedElementId = selectedElement?.id ?? null;
+    scene.find((element) => element.id === selectedElementIds.at(-1)) ??
+    selectedElements[0] ??
+    null;
+  const activeSelectedElementIds = selectedElements.map((element) => element.id);
+  const selectedFontSizePt = selectedElement
+    ? Math.round(fontPxToPt(selectedElement.fontSize, template))
+    : 0;
+  const minFontSizePt = Math.max(
+    1,
+    Math.round(fontPxToPt(constraints.minFontSize, template)),
+  );
+  const maxFontSizePt = Math.round(
+    fontPxToPt(constraints.maxFontSize, template),
+  );
+
+  function updateSelectedElements(patch: Partial<TextElement>) {
+    if (activeSelectedElementIds.length === 0) return;
+    onUpdateTextElements(
+      activeSelectedElementIds.map((elementId) => ({
+        elementId,
+        patch,
+      })),
+    );
+  }
+
+  function updateSelectedFontSizePt(nextFontSizePt: number) {
+    updateSelectedElements({
+      fontSize: fontPtToPx(
+        clampNumber(nextFontSizePt, minFontSizePt, maxFontSizePt),
+        template,
+      ),
+    });
+  }
+
+  function deleteSelectedElements() {
+    if (activeSelectedElementIds.length === 0) {
+      return;
+    }
+
+    const firstSelectedIndex = scene.findIndex((element) =>
+      activeSelectedElementIds.includes(element.id),
+    );
+    const nextScene = scene.filter(
+      (element) => !activeSelectedElementIds.includes(element.id),
+    );
+    const nextSelection =
+      nextScene[firstSelectedIndex]?.id ?? nextScene[firstSelectedIndex - 1]?.id;
+
+    onSetScene(nextScene);
+    setSelectedElementIds(nextSelection ? [nextSelection] : []);
+  }
+
+  function getOffsetCopies(elements: TextElement[]) {
+    const nextElements = elements.map((element, index) => ({
+      ...element,
+      id: `${element.id}-copy-${Date.now()}-${index}`,
+      label: element.label.endsWith("copia")
+        ? element.label
+        : `${element.label} copia`,
+      x: element.x + 48,
+      y: element.y + 48,
+    }));
+    const safeArea = getTemplateSafeArea(template);
+    const groupBox = getUnionBox(nextElements.map(getTextVisualBox));
+    const shift = getSafeAreaShift(groupBox, safeArea);
+
+    return nextElements.map((element) =>
+      clampTextElementToSafeArea(
+        {
+          ...element,
+          x: element.x + shift.dx,
+          y: element.y + shift.dy,
+        },
+        template,
+      ),
+    );
+  }
+
+  function copySelectedElements() {
+    setClipboardElements(selectedElements.map((element) => ({ ...element })));
+  }
+
+  function pasteElements() {
+    if (clipboardElements.length === 0) {
+      return;
+    }
+
+    const copies = getOffsetCopies(clipboardElements);
+
+    onSetScene([...scene, ...copies]);
+    setSelectedElementIds(copies.map((element) => element.id));
+  }
+
+  function duplicateSelectedElements() {
+    if (selectedElements.length === 0) {
+      return;
+    }
+
+    const copies = getOffsetCopies(selectedElements);
+
+    onSetScene([...scene, ...copies]);
+    setSelectedElementIds(copies.map((element) => element.id));
+  }
+
+  function alignSelectedElements(
+    direction: "left" | "center" | "right" | "top" | "middle" | "bottom",
+  ) {
+    if (selectedElements.length === 0) {
+      return;
+    }
+
+    const safeArea = getTemplateSafeArea(template);
+    const groupBox = getUnionBox(selectedElements.map(getTextVisualBox));
+    let dx = 0;
+    let dy = 0;
+
+    if (direction === "left") dx = safeArea.x - groupBox.x;
+    if (direction === "center") {
+      dx =
+        safeArea.x + safeArea.width / 2 - (groupBox.x + groupBox.width / 2);
+    }
+    if (direction === "right") {
+      dx = safeArea.x + safeArea.width - (groupBox.x + groupBox.width);
+    }
+    if (direction === "top") dy = safeArea.y - groupBox.y;
+    if (direction === "middle") {
+      dy =
+        safeArea.y + safeArea.height / 2 - (groupBox.y + groupBox.height / 2);
+    }
+    if (direction === "bottom") {
+      dy = safeArea.y + safeArea.height - (groupBox.y + groupBox.height);
+    }
+
+    onUpdateTextElements(
+      selectedElements.map((element) => ({
+        elementId: element.id,
+        patch: {
+          x: element.x + dx,
+          y: element.y + dy,
+        },
+      })),
+    );
+  }
+
+  function toggleLayerSelection(elementId: string, additive: boolean) {
+    if (!additive) {
+      setSelectedElementIds([elementId]);
+      return;
+    }
+
+    setSelectedElementIds((currentIds) =>
+      currentIds.includes(elementId)
+        ? currentIds.filter((id) => id !== elementId)
+        : [...currentIds, elementId],
+    );
+  }
+
+  useEffect(() => {
+    window.queueMicrotask(() => {
+      setSelectedElementIds((currentIds) =>
+        currentIds.filter((id) => scene.some((element) => element.id === id)),
+      );
+    });
+  }, [scene]);
 
   useEffect(() => {
     function handleKeyboardShortcut(event: KeyboardEvent) {
@@ -101,12 +322,20 @@ export function PersonalizationEditor({
       }
 
       const isModifierPressed = event.metaKey || event.ctrlKey;
+      const key = event.key.toLowerCase();
+
+      if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        selectedElementIds.length > 0
+      ) {
+        event.preventDefault();
+        deleteSelectedElements();
+        return;
+      }
 
       if (!isModifierPressed) {
         return;
       }
-
-      const key = event.key.toLowerCase();
 
       if (key === "z" && event.shiftKey && canRedo) {
         event.preventDefault();
@@ -123,6 +352,24 @@ export function PersonalizationEditor({
       if (key === "y" && canRedo) {
         event.preventDefault();
         onRedo();
+        return;
+      }
+
+      if (key === "c" && selectedElements.length > 0) {
+        event.preventDefault();
+        copySelectedElements();
+        return;
+      }
+
+      if (key === "v" && clipboardElements.length > 0) {
+        event.preventDefault();
+        pasteElements();
+        return;
+      }
+
+      if (key === "d" && selectedElements.length > 0) {
+        event.preventDefault();
+        duplicateSelectedElements();
       }
     }
 
@@ -131,24 +378,7 @@ export function PersonalizationEditor({
     return () => {
       window.removeEventListener("keydown", handleKeyboardShortcut);
     };
-  }, [canRedo, canUndo, onRedo, onUndo]);
-
-  function updateSelectedElement(patch: Partial<TextElement>) {
-    if (!activeSelectedElementId) return;
-    onUpdateTextElement(activeSelectedElementId, patch);
-  }
-
-  function deleteSelectedElement(elementId: string) {
-    const selectedIndex = scene.findIndex((element) => element.id === elementId);
-    const nextSelection =
-      scene[selectedIndex + 1]?.id ?? scene[selectedIndex - 1]?.id ?? null;
-
-    onDeleteTextElement(elementId);
-
-    if (activeSelectedElementId === elementId) {
-      setSelectedElementId(nextSelection);
-    }
-  }
+  });
 
   return (
     <section className="grid h-screen min-h-[720px] grid-rows-[4.25rem_4.75rem_minmax(0,1fr)_2.5rem] overflow-hidden bg-[#edf1f5]">
@@ -202,20 +432,15 @@ export function PersonalizationEditor({
           {selectedElement ? (
             <>
               <div className="hidden min-w-0 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary md:block">
-                Editando: {selectedElement.label}
+                {selectedElements.length > 1
+                  ? `${selectedElements.length} textos`
+                  : `Editando: ${selectedElement.label}`}
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <div className="flex items-center rounded-md border border-border bg-background">
                   <Button
                     aria-label="Reducir tamano"
-                    onClick={() =>
-                      updateSelectedElement({
-                        fontSize: Math.max(
-                          constraints.minFontSize,
-                          selectedElement.fontSize - 8,
-                        ),
-                      })
-                    }
+                    onClick={() => updateSelectedFontSizePt(selectedFontSizePt - 1)}
                     size="sm"
                     type="button"
                     variant="ghost"
@@ -223,35 +448,25 @@ export function PersonalizationEditor({
                     <Minus />
                   </Button>
                   <Input
-                    aria-label="Tamano de texto en pixeles"
+                    aria-label="Tamano de texto en puntos"
                     className="h-9 w-16 border-0 text-center"
-                    max={constraints.maxFontSize}
-                    min={constraints.minFontSize}
-                    onChange={(event) =>
-                      updateSelectedElement({
-                        fontSize: Math.min(
-                          constraints.maxFontSize,
-                          Math.max(
-                            constraints.minFontSize,
-                            Number(event.target.value) || selectedElement.fontSize,
-                          ),
-                        ),
-                      })
-                    }
-                    type="number"
-                    value={Math.round(selectedElement.fontSize)}
+                    inputMode="numeric"
+                    onChange={(event) => {
+                      const nextValue = Number(
+                        event.target.value.replace(/[^\d]/g, ""),
+                      );
+
+                      if (Number.isFinite(nextValue) && nextValue > 0) {
+                        updateSelectedFontSizePt(nextValue);
+                      }
+                    }}
+                    type="text"
+                    value={selectedFontSizePt}
                   />
-                  <span className="pr-1 text-xs text-muted-foreground">px</span>
+                  <span className="pr-1 text-xs text-muted-foreground">pt</span>
                   <Button
                     aria-label="Aumentar tamano"
-                    onClick={() =>
-                      updateSelectedElement({
-                        fontSize: Math.min(
-                          constraints.maxFontSize,
-                          selectedElement.fontSize + 8,
-                        ),
-                      })
-                    }
+                    onClick={() => updateSelectedFontSizePt(selectedFontSizePt + 1)}
                     size="sm"
                     type="button"
                     variant="ghost"
@@ -270,7 +485,7 @@ export function PersonalizationEditor({
                           "outline outline-2 outline-primary outline-offset-2",
                       )}
                       key={color}
-                      onClick={() => updateSelectedElement({ fill: color })}
+                      onClick={() => updateSelectedElements({ fill: color })}
                       style={{ backgroundColor: color }}
                       type="button"
                     />
@@ -278,15 +493,11 @@ export function PersonalizationEditor({
                 </div>
 
                 <div className="flex rounded-md border border-border bg-background">
-                  {alignmentActions.map(({ align, icon: Icon, label }) => (
+                  {textAlignmentActions.map(({ align, icon: Icon, label }) => (
                     <Button
                       aria-label={label}
                       key={align}
-                      onClick={() =>
-                        updateSelectedElement({
-                          align,
-                        })
-                      }
+                      onClick={() => updateSelectedElements({ align })}
                       size="sm"
                       type="button"
                       variant={
@@ -298,8 +509,23 @@ export function PersonalizationEditor({
                   ))}
                 </div>
 
+                <div className="flex rounded-md border border-border bg-background">
+                  {positionAlignmentActions.map(({ direction, label }) => (
+                    <Button
+                      aria-label={`Alinear ${label}`}
+                      key={direction}
+                      onClick={() => alignSelectedElements(direction)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+
                 <Button
-                  onClick={() => onDuplicateTextElement(selectedElement.id)}
+                  onClick={duplicateSelectedElements}
                   type="button"
                   variant="secondary"
                 >
@@ -308,7 +534,7 @@ export function PersonalizationEditor({
                 </Button>
                 <Button
                   aria-label="Eliminar texto"
-                  onClick={() => deleteSelectedElement(selectedElement.id)}
+                  onClick={deleteSelectedElements}
                   type="button"
                   variant="secondary"
                 >
@@ -362,7 +588,7 @@ export function PersonalizationEditor({
               Haz click para ubicar en el canvas
             </p>
             {scene.map((element) => {
-              const selected = activeSelectedElementId === element.id;
+              const selected = selectedElementIds.includes(element.id);
 
               return (
                 <button
@@ -375,7 +601,9 @@ export function PersonalizationEditor({
                   key={element.id}
                   onBlur={() => setHoveredElementId(null)}
                   onFocus={() => setHoveredElementId(element.id)}
-                  onClick={() => setSelectedElementId(element.id)}
+                  onClick={(event) =>
+                    toggleLayerSelection(element.id, event.shiftKey)
+                  }
                   onMouseEnter={() => setHoveredElementId(element.id)}
                   onMouseLeave={() => setHoveredElementId(null)}
                   title="Click para seleccionar este texto en el canvas"
@@ -393,7 +621,7 @@ export function PersonalizationEditor({
                     </span>
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {Math.round(element.fontSize)}px
+                    {Math.round(fontPxToPt(element.fontSize, template))}pt
                   </span>
                   <span
                     aria-hidden="true"
@@ -408,23 +636,27 @@ export function PersonalizationEditor({
         </aside>
 
         <main className="relative grid min-h-0">
-          <div className="absolute left-1/2 top-5 z-10 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-white/95 px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm md:flex">
-            <span className="size-2 rounded-full bg-success" />
-            Diseno protegido
-            <span className="h-5 w-px bg-border" />
-            Solo podes editar los textos.
-          </div>
           <PersonalizationCanvas
             hoveredElementId={hoveredElementId}
-            onSelectedElementChange={setSelectedElementId}
+            onSelectedElementIdsChange={setSelectedElementIds}
             onUpdateTextElement={onUpdateTextElement}
+            onUpdateTextElements={onUpdateTextElements}
             previewMode={false}
             scene={scene}
-            selectedElementId={activeSelectedElementId}
+            selectedElementIds={activeSelectedElementIds}
             template={template}
             zoom={zoom}
           />
           <div className="absolute bottom-5 right-5 flex items-center gap-2 rounded-full border border-border bg-white/95 px-2 py-1 shadow-sm">
+            <Button
+              aria-label="Ajustar al viewport"
+              onClick={() => setZoomIndex(3)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Fit
+            </Button>
             <Button
               aria-label="Alejar"
               disabled={zoomIndex === 0}

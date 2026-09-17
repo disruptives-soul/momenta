@@ -147,6 +147,22 @@ export function PurchasedProjectEditorView({
     );
   }
 
+  function updateTextElements(
+    patches: Array<{ elementId: string; patch: Partial<TextElement> }>,
+  ) {
+    const patchesById = new Map(
+      patches.map(({ elementId, patch }) => [elementId, patch]),
+    );
+
+    setTextScene(
+      scene.map((element) => {
+        const patch = patchesById.get(element.id);
+
+        return patch ? { ...element, ...patch } : element;
+      }),
+    );
+  }
+
   function addTextElement() {
     if (!template) {
       return;
@@ -159,32 +175,6 @@ export function PurchasedProjectEditorView({
         template,
       ),
     ]);
-  }
-
-  function duplicateTextElement(elementId: string) {
-    const element = scene.find((item) => item.id === elementId);
-
-    if (!element || !template) {
-      return;
-    }
-
-    setTextScene([
-      ...scene,
-      clampTextElementToSafeArea(
-        {
-          ...element,
-          id: `${element.id}-copy-${Date.now()}`,
-          label: `${element.label} copia`,
-          x: element.x + 48,
-          y: element.y + 48,
-        },
-        template,
-      ),
-    ]);
-  }
-
-  function deleteTextElement(elementId: string) {
-    setTextScene(scene.filter((element) => element.id !== elementId));
   }
 
   function undo() {
@@ -270,11 +260,11 @@ export function PurchasedProjectEditorView({
       exitHref={`/account/designs/${project.id}`}
       onAddTextElement={addTextElement}
       onContinue={() => router.push(`/account/designs/${project.id}`)}
-      onDeleteTextElement={deleteTextElement}
-      onDuplicateTextElement={duplicateTextElement}
       onRedo={redo}
+      onSetScene={setTextScene}
       onUndo={undo}
       onUpdateTextElement={updateTextElement}
+      onUpdateTextElements={updateTextElements}
       productName={project.product.name}
       scene={scene}
       template={template}

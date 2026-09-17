@@ -36,6 +36,7 @@ export function getSmartCanvasGuides(
   box: GuideBox,
   canvasSize: CanvasSize,
   safeArea: TemplateSafeArea,
+  otherBoxes: GuideBox[] = [],
 ) {
   const verticalTargets = [
     {
@@ -62,6 +63,26 @@ export function getSmartCanvasGuides(
       start: safeArea.y,
       end: safeArea.y + safeArea.height,
     },
+    ...otherBoxes.flatMap((otherBox, index) => [
+      {
+        id: `text-${index}-left`,
+        position: otherBox.x,
+        start: otherBox.y,
+        end: otherBox.y + otherBox.height,
+      },
+      {
+        id: `text-${index}-center-x`,
+        position: otherBox.x + otherBox.width / 2,
+        start: otherBox.y,
+        end: otherBox.y + otherBox.height,
+      },
+      {
+        id: `text-${index}-right`,
+        position: otherBox.x + otherBox.width,
+        start: otherBox.y,
+        end: otherBox.y + otherBox.height,
+      },
+    ]),
   ];
   const horizontalTargets = [
     {
@@ -88,6 +109,26 @@ export function getSmartCanvasGuides(
       start: safeArea.x,
       end: safeArea.x + safeArea.width,
     },
+    ...otherBoxes.flatMap((otherBox, index) => [
+      {
+        id: `text-${index}-top`,
+        position: otherBox.y,
+        start: otherBox.x,
+        end: otherBox.x + otherBox.width,
+      },
+      {
+        id: `text-${index}-middle-y`,
+        position: otherBox.y + otherBox.height / 2,
+        start: otherBox.x,
+        end: otherBox.x + otherBox.width,
+      },
+      {
+        id: `text-${index}-bottom`,
+        position: otherBox.y + otherBox.height,
+        start: otherBox.x,
+        end: otherBox.x + otherBox.width,
+      },
+    ]),
   ];
   const verticalAnchors = [
     { id: "left", position: box.x },

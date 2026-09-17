@@ -213,6 +213,22 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
     );
   }
 
+  function updateTextElements(
+    patches: Array<{ elementId: string; patch: Partial<TextElement> }>,
+  ) {
+    const patchesById = new Map(
+      patches.map(({ elementId, patch }) => [elementId, patch]),
+    );
+
+    setTextScene(
+      activeScene.map((element) => {
+        const patch = patchesById.get(element.id);
+
+        return patch ? { ...element, ...patch } : element;
+      }),
+    );
+  }
+
   function addTextElement() {
     setTextScene([
       ...activeScene,
@@ -221,29 +237,6 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
         activeTemplate,
       ),
     ]);
-  }
-
-  function duplicateTextElement(elementId: string) {
-    const element = activeScene.find((item) => item.id === elementId);
-
-    if (!element) {
-      return;
-    }
-
-    setTextScene([
-      ...activeScene,
-      {
-        ...element,
-        id: `${element.id}-copy-${Date.now()}`,
-        label: `${element.label} copia`,
-        x: element.x + 48,
-        y: element.y + 48,
-      },
-    ]);
-  }
-
-  function deleteTextElement(elementId: string) {
-    setTextScene(activeScene.filter((element) => element.id !== elementId));
   }
 
   function undo() {
@@ -321,11 +314,11 @@ export function PersonalizationFlow({ productSlug = "invitation" }: Personalizat
         exitHref={`/products/${activeProduct.slug}`}
         onAddTextElement={addTextElement}
         onContinue={continueToReview}
-        onDeleteTextElement={deleteTextElement}
-        onDuplicateTextElement={duplicateTextElement}
         onRedo={redo}
+        onSetScene={setTextScene}
         onUndo={undo}
         onUpdateTextElement={updateTextElement}
+        onUpdateTextElements={updateTextElements}
         productName={activeProduct.name}
         scene={activeScene}
         template={activeTemplate}

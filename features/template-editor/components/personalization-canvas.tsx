@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Type } from "lucide-react";
 import {
   Image as KonvaImage,
   Layer,
   Line,
+  Rect,
   Stage,
   Text as KonvaText,
 } from "react-konva";
+import type Konva from "konva";
 import type {
   InvitationTemplate,
   TextElement,
@@ -19,18 +20,31 @@ import { EditableText } from "./editable-text";
 import type { CanvasAlignmentGuide } from "../services/canvas-guides";
 import {
   getTemplateSafeArea,
+  getSafeAreaShift,
+  getTextRotatedBoundingBox,
   getTextVisualBox,
+  type TemplateSafeArea,
 } from "@/features/personalization/services/text-scene-safe-area";
 
 type PersonalizationCanvasProps = {
   template: InvitationTemplate;
   scene: TextElement[];
-  selectedElementId: string | null;
+  selectedElementIds: string[];
   hoveredElementId?: string | null;
   zoom: number;
   previewMode: boolean;
-  onSelectedElementChange: (elementId: string | null) => void;
+  onSelectedElementIdsChange: (elementIds: string[]) => void;
   onUpdateTextElement: (elementId: string, patch: Partial<TextElement>) => void;
+  onUpdateTextElements: (
+    patches: Array<{ elementId: string; patch: Partial<TextElement> }>,
+  ) => void;
+};
+
+type SelectionRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 function useCanvasImage(src: string) {
@@ -53,32 +67,35 @@ function useCanvasImage(src: string) {
 export function PersonalizationCanvas({
   template,
   scene,
-  selectedElementId,
+  selectedElementIds,
   hoveredElementId = null,
   zoom,
   previewMode,
-  onSelectedElementChange,
+  onSelectedElementIdsChange,
   onUpdateTextElement,
+  onUpdateTextElements,
 }: PersonalizationCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
   const scale = useTemplateScale(containerRef, template, zoom);
   const image = useCanvasImage(template.preview.src);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [alignmentGuides, setAlignmentGuides] = useState<
     CanvasAlignmentGuide[]
   >([]);
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
   const [canvasHoveredElementId, setCanvasHoveredElementId] = useState<string | null>(
     null,
   );
   const visibleHoverElementId = hoveredElementId ?? canvasHoveredElementId;
-  const activeElement =
-    scene.find((element) => element.id === selectedElementId) ?? null;
   const hoveredElement =
     scene.find((element) => element.id === visibleHoverElementId) ?? null;
   const canvasHintElement = hoveredElement ?? null;
   const editingElement =
     scene.find((element) => element.id === editingElementId) ?? null;
+  const masterSafeArea = useMemo(() => getTemplateSafeArea(template), [template]);
 
   const editingStyle = useMemo(() => {
     if (!editingElement) {
@@ -104,15 +121,13 @@ export function PersonalizationCanvas({
     };
   }, [editingElement, scale]);
   const safeArea = useMemo(() => {
-    const templateSafeArea = getTemplateSafeArea(template);
-
     return {
-      x: templateSafeArea.x * scale.scaleX,
-      y: templateSafeArea.y * scale.scaleY,
-      width: templateSafeArea.width * scale.scaleX,
-      height: templateSafeArea.height * scale.scaleY,
+      x: masterSafeArea.x * scale.scaleX,
+      y: masterSafeArea.y * scale.scaleY,
+      width: masterSafeArea.width * scale.scaleX,
+      height: masterSafeArea.height * scale.scaleY,
     };
-  }, [scale.scaleX, scale.scaleY, template]);
+  }, [masterSafeArea, scale.scaleX, scale.scaleY]);
   const canvasHintStyle = useMemo(() => {
     if (!canvasHintElement) {
       return null;
@@ -151,9 +166,185 @@ export function PersonalizationCanvas({
       return;
     }
 
-    onSelectedElementChange(element.id);
+    onSelectedElementIdsChange([element.id]);
     setAlignmentGuides([]);
     setEditingElementId(element.id);
+  }
+
+  function getUnionBox(boxes: TemplateSafeArea[]) {
+    const minX = Math.min(...boxes.map((box) => box.x));
+    const minY = Math.min(...boxes.map((box) => box.y));
+    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
+  function clampGroupDelta(deltaX: number, deltaY: number, elementIds: string[]) {
+    const boxes = scene
+      .filter((element) => elementIds.includes(element.id))
+      .map(getTextRotatedBoundingBox);
+
+    if (boxes.length === 0) {
+      return { dx: deltaX, dy: deltaY };
+    }
+
+    const groupBox = getUnionBox(boxes);
+    const shiftedBox = {
+      ...groupBox,
+      x: groupBox.x + deltaX,
+      y: groupBox.y + deltaY,
+    };
+    const shift = getSafeAreaShift(shiftedBox, masterSafeArea);
+
+    return {
+      dx: deltaX + shift.dx,
+      dy: deltaY + shift.dy,
+    };
+  }
+
+  function handleTextSelect(elementId: string, additive = false) {
+    if (!additive) {
+      onSelectedElementIdsChange([elementId]);
+      return;
+    }
+
+    onSelectedElementIdsChange(
+      selectedElementIds.includes(elementId)
+        ? selectedElementIds.filter((id) => id !== elementId)
+        : [...selectedElementIds, elementId],
+    );
+  }
+
+  function handleTextChange(
+    elementId: string,
+    patch: Partial<TextElement>,
+  ) {
+    const element = scene.find((item) => item.id === elementId);
+
+    if (!element) {
+      return;
+    }
+
+    const patchX = patch.x;
+    const patchY = patch.y;
+    const isGroupMove =
+      selectedElementIds.length > 1 &&
+      selectedElementIds.includes(elementId) &&
+      typeof patchX === "number" &&
+      typeof patchY === "number" &&
+      patch.width === element.width &&
+      patch.fontSize === element.fontSize;
+
+    if (!isGroupMove) {
+      onUpdateTextElement(elementId, patch);
+      return;
+    }
+
+    const clampedDelta = clampGroupDelta(
+      patchX - element.x,
+      patchY - element.y,
+      selectedElementIds,
+    );
+
+    onUpdateTextElements(
+      scene
+        .filter((item) => selectedElementIds.includes(item.id))
+        .map((item) => ({
+          elementId: item.id,
+          patch: {
+            x: item.x + clampedDelta.dx,
+            y: item.y + clampedDelta.dy,
+          },
+        })),
+    );
+  }
+
+  function getStagePointerPosition() {
+    const stage = stageRef.current;
+    const pointer = stage?.getPointerPosition();
+
+    if (!pointer) {
+      return null;
+    }
+
+    return pointer;
+  }
+
+  function handleStageMouseDown(event: Konva.KonvaEventObject<MouseEvent>) {
+    if (previewMode || event.target !== event.target.getStage()) {
+      return;
+    }
+
+    const pointer = getStagePointerPosition();
+
+    if (!pointer) {
+      return;
+    }
+
+    selectionStartRef.current = pointer;
+    setSelectionRect({ x: pointer.x, y: pointer.y, width: 0, height: 0 });
+  }
+
+  function handleStageMouseMove() {
+    const start = selectionStartRef.current;
+    const pointer = getStagePointerPosition();
+
+    if (!start || !pointer) {
+      return;
+    }
+
+    setSelectionRect({
+      x: Math.min(start.x, pointer.x),
+      y: Math.min(start.y, pointer.y),
+      width: Math.abs(pointer.x - start.x),
+      height: Math.abs(pointer.y - start.y),
+    });
+  }
+
+  function intersectsBox(first: SelectionRect, second: SelectionRect) {
+    return (
+      first.x <= second.x + second.width &&
+      first.x + first.width >= second.x &&
+      first.y <= second.y + second.height &&
+      first.y + first.height >= second.y
+    );
+  }
+
+  function handleStageMouseUp() {
+    const rect = selectionRect;
+
+    if (!rect) {
+      return;
+    }
+
+    selectionStartRef.current = null;
+    setSelectionRect(null);
+
+    if (rect.width < 4 && rect.height < 4) {
+      onSelectedElementIdsChange([]);
+      return;
+    }
+
+    onSelectedElementIdsChange(
+      scene
+        .filter((element) => {
+          const visualBox = getTextVisualBox(element);
+
+          return intersectsBox(rect, {
+            x: visualBox.x * scale.scaleX,
+            y: visualBox.y * scale.scaleY,
+            width: visualBox.width * scale.scaleX,
+            height: visualBox.height * scale.scaleY,
+          });
+        })
+        .map((element) => element.id),
+    );
   }
 
   useEffect(() => {
@@ -173,11 +364,15 @@ export function PersonalizationCanvas({
       className="relative flex h-full w-full items-start justify-center overflow-auto rounded-md bg-[#eef2f1] p-4"
     >
       <div className="relative shrink-0" style={{ width: scale.width }}>
-        {!previewMode ? (
-          null
-        ) : null}
         <div className="overflow-hidden rounded-md border border-border bg-surface shadow-md">
-        <Stage height={scale.height} width={scale.width}>
+        <Stage
+          height={scale.height}
+          onMouseDown={handleStageMouseDown}
+          onMouseMove={handleStageMouseMove}
+          onMouseUp={handleStageMouseUp}
+          ref={stageRef}
+          width={scale.width}
+        >
           <Layer name="ArtworkLayer">
             {image ? (
               <KonvaImage
@@ -223,19 +418,49 @@ export function PersonalizationCanvas({
                 canvasSize={{ width: scale.width, height: scale.height }}
                 disabled={previewMode}
                 element={element}
+                guideBoxes={scene
+                  .filter(
+                    (item) =>
+                      item.id !== element.id &&
+                      !selectedElementIds.includes(item.id),
+                  )
+                  .map((item) => {
+                    const box = getTextVisualBox(item);
+
+                    return {
+                      x: box.x * scale.scaleX,
+                      y: box.y * scale.scaleY,
+                      width: box.width * scale.scaleX,
+                      height: box.height * scale.scaleY,
+                    };
+                  })}
                 isHovered={element.id === visibleHoverElementId}
                 isEditing={element.id === editingElementId}
-                isActive={element.id === selectedElementId}
+                isActive={selectedElementIds.includes(element.id)}
                 key={element.id}
-                onChange={onUpdateTextElement}
+                onChange={handleTextChange}
                 onGuidesChange={setAlignmentGuides}
                 onHoverChange={setCanvasHoveredElementId}
-                onSelect={onSelectedElementChange}
+                onSelect={handleTextSelect}
                 onStartEditing={startEditing}
                 safeArea={safeArea}
                 scale={scale}
               />
             ))}
+            {selectionRect ? (
+              <Rect
+                dash={[6, 4]}
+                fill="#0f766e"
+                height={selectionRect.height}
+                listening={false}
+                opacity={0.12}
+                stroke="#0f766e"
+                strokeWidth={1.5}
+                width={selectionRect.width}
+                x={selectionRect.x}
+                y={selectionRect.y}
+              />
+            ) : null}
           </Layer>
           <Layer listening={false} name="WatermarkLayer">
             {watermarkTiles.map((tile) => (
@@ -263,7 +488,7 @@ export function PersonalizationCanvas({
             className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-lg"
             style={canvasHintStyle}
           >
-            Click para editar
+            Doble click para editar
           </div>
         ) : null}
 
@@ -310,19 +535,6 @@ export function PersonalizationCanvas({
         ) : null}
       </div>
 
-      {!previewMode && activeElement ? (
-        <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/30 bg-white/95 px-2 py-1.5 text-sm shadow-lg">
-          <span className="font-medium">{activeElement.label}</span>
-          <button
-            aria-label="Editar texto"
-            className="grid size-8 place-items-center rounded-full hover:bg-muted"
-            onClick={() => startEditing(activeElement)}
-            type="button"
-          >
-            <Type className="size-4" />
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
