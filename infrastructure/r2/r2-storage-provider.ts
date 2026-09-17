@@ -135,11 +135,33 @@ export class R2StorageProvider implements StorageProvider {
   }
 
   async getObject(input: { key: string }): Promise<GetObjectOutput> {
-    const url = await this.createSignedUrl({
-      key: input.key,
-      expiresInSeconds: 60,
+    const payloadHash = hashSha256("");
+    const amzDate = toAmzDate();
+    const canonicalUri = this.getCanonicalUri(input.key);
+    const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+    const canonicalHeaders = [
+      `host:${this.host}`,
+      `x-amz-content-sha256:${payloadHash}`,
+      `x-amz-date:${amzDate}`,
+      "",
+    ].join("\n");
+    const authorization = this.createAuthorizationHeader({
+      amzDate,
+      canonicalHeaders,
+      canonicalQuery: "",
+      canonicalUri,
+      method: "GET",
+      payloadHash,
+      signedHeaders,
     });
-    const response = await fetch(url);
+    const response = await fetch(`${this.endpoint}${canonicalUri}`, {
+      method: "GET",
+      headers: {
+        Authorization: authorization,
+        "X-Amz-Content-Sha256": payloadHash,
+        "X-Amz-Date": amzDate,
+      },
+    });
 
     if (!response.ok) {
       throw new Error(
@@ -194,7 +216,7 @@ export class R2StorageProvider implements StorageProvider {
   }
 
   private createAuthorizationHeader(input: {
-    method: "PUT";
+    method: "GET" | "PUT";
     canonicalUri: string;
     canonicalQuery: string;
     canonicalHeaders: string;
