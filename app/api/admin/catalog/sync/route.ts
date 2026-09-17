@@ -504,12 +504,12 @@ async function createAutoTextElementsFromPreview(
       const x = ((box.minX + box.maxX) / 2) * scaleX;
       const y = (box.minY + box.height * 0.82) * scaleY;
       const width = Math.max(120, box.width * scaleX * 1.18);
-      const fontSize = Math.max(24, box.height * scaleY * 1.08);
+      const fontSize = Math.min(140, Math.max(32, box.height * scaleY * 0.72));
 
       return {
         id: `auto-text-${index + 1}`,
-        label: `Texto detectado ${index + 1}`,
-        text: `Texto ${index + 1}`,
+        label: `Campo editable ${index + 1}`,
+        text: "",
         x: Math.round(x),
         y: Math.round(y),
         width: Math.round(width),
