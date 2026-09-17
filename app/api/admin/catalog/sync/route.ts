@@ -72,6 +72,25 @@ type CatalogStorageKeys = {
   productKey: string;
 };
 
+type AutoTextElement = {
+  id: string;
+  label: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  fontFamily: string;
+  pdfFont: "helvetica";
+  fontWeight: number;
+  fontSize: number;
+  minFontSize: number;
+  fill: string;
+  align: "center";
+  maxLines: number;
+  lineHeight: number;
+  letterSpacing: number;
+};
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -292,6 +311,228 @@ function getStorageKeys(payload: CatalogSyncPayload): CatalogStorageKeys {
     templateKey: `${base}/template.json`,
     productKey: `${base}/_product.json`,
   };
+}
+
+function rgbToHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function getEstimatedTextColor(
+  previewPixels: Buffer,
+  mask: Uint8Array,
+  width: number,
+  box: { minX: number; minY: number; maxX: number; maxY: number },
+) {
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+
+  for (let y = box.minY; y <= box.maxY; y += 1) {
+    for (let x = box.minX; x <= box.maxX; x += 1) {
+      const pixelIndex = y * width + x;
+
+      if (!mask[pixelIndex]) {
+        continue;
+      }
+
+      const offset = pixelIndex * 4;
+      red += previewPixels[offset] ?? 0;
+      green += previewPixels[offset + 1] ?? 0;
+      blue += previewPixels[offset + 2] ?? 0;
+      count += 1;
+    }
+  }
+
+  if (count === 0) {
+    return "#202124";
+  }
+
+  return rgbToHex(red / count, green / count, blue / count);
+}
+
+function dilateMask(mask: Uint8Array, width: number, height: number) {
+  const output = new Uint8Array(mask.length);
+  const radiusX = Math.max(8, Math.round(width * 0.018));
+  const radiusY = Math.max(2, Math.round(height * 0.004));
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!mask[y * width + x]) {
+        continue;
+      }
+
+      const minY = Math.max(0, y - radiusY);
+      const maxY = Math.min(height - 1, y + radiusY);
+      const minX = Math.max(0, x - radiusX);
+      const maxX = Math.min(width - 1, x + radiusX);
+
+      for (let yy = minY; yy <= maxY; yy += 1) {
+        const row = yy * width;
+
+        for (let xx = minX; xx <= maxX; xx += 1) {
+          output[row + xx] = 1;
+        }
+      }
+    }
+  }
+
+  return output;
+}
+
+function findMaskComponents(mask: Uint8Array, width: number, height: number) {
+  const visited = new Uint8Array(mask.length);
+  const components: Array<{
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    area: number;
+  }> = [];
+
+  for (let start = 0; start < mask.length; start += 1) {
+    if (!mask[start] || visited[start]) {
+      continue;
+    }
+
+    const queue = [start];
+    visited[start] = 1;
+    let cursor = 0;
+    let area = 0;
+    let minX = width;
+    let minY = height;
+    let maxX = 0;
+    let maxY = 0;
+
+    while (cursor < queue.length) {
+      const index = queue[cursor];
+      cursor += 1;
+
+      const x = index % width;
+      const y = Math.floor(index / width);
+      area += 1;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(height - 1, y + 1); yy += 1) {
+        for (let xx = Math.max(0, x - 1); xx <= Math.min(width - 1, x + 1); xx += 1) {
+          const next = yy * width + xx;
+
+          if (mask[next] && !visited[next]) {
+            visited[next] = 1;
+            queue.push(next);
+          }
+        }
+      }
+    }
+
+    components.push({ minX, minY, maxX, maxY, area });
+  }
+
+  return components;
+}
+
+async function createAutoTextElementsFromPreview(
+  master: Uint8Array,
+  preview: Uint8Array,
+): Promise<AutoTextElement[]> {
+  let sharp: typeof import("sharp").default;
+
+  try {
+    sharp = (await import("sharp")).default;
+  } catch (error) {
+    console.warn("Skipping preview auto-calibration because sharp is unavailable.", error);
+    return [];
+  }
+
+  const masterImage = sharp(master);
+  const metadata = await masterImage.metadata();
+  const sourceWidth = metadata.width ?? 0;
+  const sourceHeight = metadata.height ?? 0;
+
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    return [];
+  }
+
+  const analysisWidth = Math.min(1000, sourceWidth);
+  const analysisHeight = Math.max(1, Math.round((sourceHeight / sourceWidth) * analysisWidth));
+  const [masterPixels, previewPixels] = await Promise.all([
+    sharp(master)
+      .resize(analysisWidth, analysisHeight, { fit: "fill" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer(),
+    sharp(preview)
+      .resize(analysisWidth, analysisHeight, { fit: "fill" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer(),
+  ]);
+  const mask = new Uint8Array(analysisWidth * analysisHeight);
+
+  for (let index = 0; index < mask.length; index += 1) {
+    const offset = index * 4;
+    const redDiff = Math.abs((previewPixels[offset] ?? 0) - (masterPixels[offset] ?? 0));
+    const greenDiff = Math.abs((previewPixels[offset + 1] ?? 0) - (masterPixels[offset + 1] ?? 0));
+    const blueDiff = Math.abs((previewPixels[offset + 2] ?? 0) - (masterPixels[offset + 2] ?? 0));
+    const diff = redDiff + greenDiff + blueDiff;
+
+    if (diff > 95) {
+      mask[index] = 1;
+    }
+  }
+
+  const groupedMask = dilateMask(mask, analysisWidth, analysisHeight);
+  const scaleX = sourceWidth / analysisWidth;
+  const scaleY = sourceHeight / analysisHeight;
+  const minWidth = analysisWidth * 0.025;
+  const minHeight = analysisHeight * 0.004;
+  const maxComponentArea = analysisWidth * analysisHeight * 0.22;
+
+  return findMaskComponents(groupedMask, analysisWidth, analysisHeight)
+    .map((box) => ({
+      ...box,
+      width: box.maxX - box.minX + 1,
+      height: box.maxY - box.minY + 1,
+    }))
+    .filter((box) => (
+      box.width >= minWidth &&
+      box.height >= minHeight &&
+      box.area <= maxComponentArea &&
+      box.width <= analysisWidth * 0.92 &&
+      box.height <= analysisHeight * 0.35
+    ))
+    .sort((a, b) => (a.minY === b.minY ? a.minX - b.minX : a.minY - b.minY))
+    .slice(0, 12)
+    .map((box, index) => {
+      const x = ((box.minX + box.maxX) / 2) * scaleX;
+      const y = (box.minY + box.height * 0.82) * scaleY;
+      const width = Math.max(120, box.width * scaleX * 1.18);
+      const fontSize = Math.max(24, box.height * scaleY * 1.08);
+
+      return {
+        id: `auto-text-${index + 1}`,
+        label: `Texto detectado ${index + 1}`,
+        text: `Texto ${index + 1}`,
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        fontFamily: "Arial, Helvetica, sans-serif",
+        pdfFont: "helvetica",
+        fontWeight: box.height > analysisHeight * 0.04 ? 700 : 500,
+        fontSize: Math.round(fontSize),
+        minFontSize: 24,
+        fill: getEstimatedTextColor(previewPixels, mask, analysisWidth, box),
+        align: "center",
+        maxLines: box.height > analysisHeight * 0.045 ? 2 : 1,
+        lineHeight: 1.15,
+        letterSpacing: 0,
+      };
+    });
 }
 
 function getCatalogStatus(payload: CatalogSyncPayload): CatalogStatus {
@@ -541,6 +782,20 @@ export async function POST(request: Request) {
       downloadAsset(payload.assets.masterUrl, "image/jpeg"),
       downloadAsset(payload.assets.previewUrl, "image/webp"),
     ]);
+
+    if (payload.template.textElements.length === 0) {
+      payload = {
+        ...payload,
+        template: {
+          ...payload.template,
+          textElements: await createAutoTextElementsFromPreview(
+            master.body,
+            preview.body,
+          ),
+        },
+      };
+    }
+
     const templateObject = getTemplateObject(payload, keys);
     const productObject = getProductObject(payload, keys, storageName);
 
