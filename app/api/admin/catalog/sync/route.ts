@@ -537,19 +537,17 @@ async function createAutoTextElementsFromPreview(
 
 function getCatalogStatus(payload: CatalogSyncPayload): CatalogStatus {
   const status = payload.template.status ?? payload.product.status;
+  const hasTextElements = payload.template.textElements.length > 0;
 
-  if (
-    status === "draft" ||
-    status === "needs_calibration" ||
-    status === "ready" ||
-    status === "published"
-  ) {
+  if (status === "draft" || status === "ready" || status === "published") {
     return status;
   }
 
-  return payload.template.textElements.length > 0
-    ? "published"
-    : "needs_calibration";
+  if (status === "needs_calibration" && hasTextElements) {
+    return "published";
+  }
+
+  return hasTextElements ? "published" : "needs_calibration";
 }
 
 function getTemplateObject(payload: CatalogSyncPayload, keys: CatalogStorageKeys) {
@@ -832,6 +830,7 @@ export async function POST(request: Request) {
       keys,
       storageName,
     );
+    const catalogStatus = getCatalogStatus(payload);
 
     revalidateCatalogPaths(payload);
 
@@ -840,6 +839,8 @@ export async function POST(request: Request) {
       collectionSlug: payload.collection.slug,
       productSlug: payload.product.slug,
       templateId: payload.template.id,
+      catalogStatus,
+      textElementCount: templateObject.textElements.length,
       storage: storageName,
       keys,
       createdKeys,
