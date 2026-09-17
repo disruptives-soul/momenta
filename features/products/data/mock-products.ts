@@ -43,6 +43,7 @@ function getSpaceProductAssets(pieceSlug: string) {
 
 export type PrototypeProduct = Product & {
   catalogStatus?: "draft" | "needs_calibration" | "ready" | "published";
+  textElementCount?: number;
   priceLabel?: string;
   prototype: {
     behavior: "simulated";

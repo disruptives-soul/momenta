@@ -14,6 +14,7 @@ type CatalogProductManifest = {
     name: string;
     description?: string;
     status?: CatalogStatus;
+    textElementCount?: number;
     pieceType: string;
     price: number;
     visualFormat: string;
@@ -52,6 +53,7 @@ type SupabaseCatalogProductRow = {
   product_payload?: {
     description?: string;
     status?: CatalogStatus;
+    textElementCount?: number;
   };
   print_profile_payload?: {
     label?: string;
@@ -148,11 +150,14 @@ function normalizeStatus(status?: string): CatalogStatus {
 }
 
 export function isPublicProduct(product: PrototypeProduct) {
-  return (
+  const isVisibleStatus =
     product.catalogStatus === undefined ||
     product.catalogStatus === "ready" ||
-    product.catalogStatus === "published"
-  );
+    product.catalogStatus === "published";
+  const hasValidTemplate =
+    product.catalogStatus === undefined || (product.textElementCount ?? 0) > 0;
+
+  return isVisibleStatus && hasValidTemplate;
 }
 
 function mapManifestToProduct(manifest: CatalogProductManifest): PrototypeProduct {
@@ -185,6 +190,7 @@ function mapManifestToProduct(manifest: CatalogProductManifest): PrototypeProduc
     variables: [],
     outputFormats: product.outputFormats ?? ["png", "pdf"],
     catalogStatus: normalizeStatus(product.status),
+    textElementCount: product.textElementCount,
     prototype: {
       behavior: "simulated",
       ctaLabel: "Ver producto",
@@ -217,6 +223,7 @@ function mapSupabaseRowToProduct(
       name: row.name,
       description: row.product_payload?.description,
       status: row.product_payload?.status,
+      textElementCount: row.product_payload?.textElementCount,
       pieceType: row.piece_type,
       price: row.price,
       visualFormat: row.visual_format,

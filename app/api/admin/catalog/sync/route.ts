@@ -445,8 +445,8 @@ async function createAutoTextElementsFromPreview(
   try {
     sharp = (await import("sharp")).default;
   } catch (error) {
-    console.warn("Skipping preview auto-calibration because sharp is unavailable.", error);
-    return [];
+    console.error("Sharp unavailable", error);
+    throw new Error("Sharp unavailable for preview text layer detection.");
   }
 
   const masterImage = sharp(master);
@@ -580,12 +580,14 @@ function getProductObject(
   storage: string,
 ) {
   const status = getCatalogStatus(payload);
+  const textElementCount = payload.template.textElements.length;
 
   return {
     collection: payload.collection,
     product: {
       ...payload.product,
       status,
+      textElementCount,
       outputFormats: ["png", "pdf"],
       assets: {
         provider: storage,
@@ -792,6 +794,17 @@ export async function POST(request: Request) {
           ),
         },
       };
+    }
+
+    if (payload.template.textElements.length === 0) {
+      return NextResponse.json(
+        {
+          error: "No text layers detected from preview image",
+          catalogStatus: "draft",
+          textElementCount: 0,
+        },
+        { status: 422 },
+      );
     }
 
     const templateObject = getTemplateObject(payload, keys);
