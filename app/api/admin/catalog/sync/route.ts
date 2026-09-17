@@ -126,8 +126,43 @@ type OcrLineResult = OcrTextResult & {
   height: number;
 };
 
+const TESSERACT_INIT_TIMEOUT_MS = 15_000;
+const FULL_PREVIEW_OCR_TIMEOUT_MS = 45_000;
+const CROP_OCR_TIMEOUT_MS = 5_000;
+const TESSERACT_TERMINATE_TIMEOUT_MS = 3_000;
+const MAX_OCR_CROPS = 8;
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(label)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function terminateTesseractWorker(worker: { terminate: () => Promise<unknown> }) {
+  try {
+    await withTimeout(
+      worker.terminate(),
+      TESSERACT_TERMINATE_TIMEOUT_MS,
+      "Tesseract worker termination timed out",
+    );
+  } catch (error) {
+    console.error("Tesseract worker termination failed", error);
+  }
 }
 
 function isAuthorized(request: Request) {
@@ -467,9 +502,13 @@ async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
 
   try {
     const tesseract = await import("tesseract.js");
-    const worker = await tesseract.createWorker("eng", undefined, {
-      cachePath: tmpdir(),
-    });
+    const worker = await withTimeout(
+      tesseract.createWorker("eng", undefined, {
+        cachePath: tmpdir(),
+      }),
+      TESSERACT_INIT_TIMEOUT_MS,
+      "Tesseract crop OCR worker init timed out",
+    );
 
     try {
       await worker.setParameters({
@@ -480,8 +519,12 @@ async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
 
       const results: OcrTextResult[] = [];
 
-      for (const crop of crops) {
-        const result = await worker.recognize(crop);
+      for (const crop of crops.slice(0, MAX_OCR_CROPS)) {
+        const result = await withTimeout(
+          worker.recognize(crop),
+          CROP_OCR_TIMEOUT_MS,
+          "Tesseract crop OCR timed out",
+        );
         const confidence = Math.round(result.data.confidence ?? 0);
         const text = normalizeOcrText(result.data.text ?? "");
         const hasUsableText = hasReadableTemplateText(text) && confidence >= 60;
@@ -495,7 +538,7 @@ async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
 
       return results;
     } finally {
-      await worker.terminate();
+      await terminateTesseractWorker(worker);
     }
   } catch (error) {
     console.error("Tesseract OCR failed", error);
@@ -508,7 +551,7 @@ async function recognizePreviewTextLines(
   previewWidth: number,
   previewHeight: number,
 ): Promise<OcrLineResult[]> {
-  const maxOcrWidth = 1800;
+  const maxOcrWidth = 1000;
   const scale = previewWidth > maxOcrWidth ? maxOcrWidth / previewWidth : 1;
   const ocrWidth = Math.max(1, Math.round(previewWidth * scale));
   const ocrHeight = Math.max(1, Math.round(previewHeight * scale));
@@ -523,9 +566,13 @@ async function recognizePreviewTextLines(
       .png()
       .toBuffer();
     const tesseract = await import("tesseract.js");
-    const worker = await tesseract.createWorker("eng", undefined, {
-      cachePath: tmpdir(),
-    });
+    const worker = await withTimeout(
+      tesseract.createWorker("eng", undefined, {
+        cachePath: tmpdir(),
+      }),
+      TESSERACT_INIT_TIMEOUT_MS,
+      "Tesseract full-preview OCR worker init timed out",
+    );
 
     try {
       await worker.setParameters({
@@ -534,7 +581,11 @@ async function recognizePreviewTextLines(
         user_defined_dpi: "300",
       });
 
-      const result = await worker.recognize(image);
+      const result = await withTimeout(
+        worker.recognize(image),
+        FULL_PREVIEW_OCR_TIMEOUT_MS,
+        "Tesseract full-preview OCR timed out",
+      );
       const lines =
         result.data.blocks?.flatMap((block) =>
           block.paragraphs.flatMap((paragraph) => paragraph.lines),
@@ -564,7 +615,7 @@ async function recognizePreviewTextLines(
         .sort((a, b) => (Math.abs(a.y - b.y) < 8 ? a.x - b.x : a.y - b.y))
         .slice(0, 16);
     } finally {
-      await worker.terminate();
+      await terminateTesseractWorker(worker);
     }
   } catch (error) {
     console.error("Tesseract full-preview OCR failed", error);
