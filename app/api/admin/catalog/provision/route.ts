@@ -12,6 +12,10 @@ type ProvisionRequestBody = {
   dryRun?: boolean;
 };
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function isAuthorized(request: Request) {
   const secret = process.env.MOMENTA_ADMIN_SECRET;
 
@@ -63,22 +67,35 @@ export async function POST(request: Request) {
   }
 
   const storage = createStorageProvider();
+  const createdKeys: string[] = [];
 
-  await Promise.all(
-    objects.map((object) =>
-      storage.putObject({
+  try {
+    for (const object of objects) {
+      await storage.putObject({
         key: object.key,
         body: object.body,
         contentType: object.contentType,
-      }),
-    ),
-  );
+      });
+      createdKeys.push(object.key);
+    }
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Catalog provisioning failed.",
+        detail: getErrorMessage(error),
+        storage: getStorageProviderName(),
+        created: createdKeys.length,
+        createdKeys,
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,
     storage: getStorageProviderName(),
-    created: objects.length,
-    keys: objects.map((object) => object.key),
+    created: createdKeys.length,
+    keys: createdKeys,
   });
 }
 
