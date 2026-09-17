@@ -34,6 +34,7 @@ export type PurchasedTemplateSnapshot = {
 export type PurchasedProject = {
   id: string;
   userId: string;
+  orderId?: string;
   productId: string;
   templateId: string;
   product: PurchasedProductSnapshot;

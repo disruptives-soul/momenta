@@ -1,10 +1,16 @@
 import type { TextElement } from "@/features/rendering/templates/template-types";
 import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
+import type {
+  PurchasedProductSnapshot,
+  PurchasedTemplateSnapshot,
+} from "@/features/purchased-projects/types/purchased-project";
 
 type SupabaseOrderItemInput = {
   id: string;
   productId: string;
   template: InvitationTemplate;
+  productSnapshot?: PurchasedProductSnapshot;
+  templateSnapshot?: PurchasedTemplateSnapshot;
   scene: TextElement[];
 };
 
@@ -44,27 +50,34 @@ function isSupabaseConfigured() {
 }
 
 function getProductSnapshot(item: SupabaseOrderItemInput) {
+  if (item.productSnapshot) {
+    return item.productSnapshot;
+  }
+
   return {
-    productId: item.productId,
+    id: item.productId,
+    slug: item.template.productCode,
+    name: item.template.productCode,
+    pieceTypeName: item.template.productCode,
     collectionSlug: item.template.collectionSlug,
-    productCode: item.template.productCode,
-    printProfile: item.template.printProfile,
+    collectionName: item.template.collectionSlug,
     widthMm: item.template.widthMm,
     heightMm: item.template.heightMm,
+    outputFormats: ["pdf"],
+    visualFormat: item.template.printProfile.label,
   };
 }
 
-function getTemplateSnapshot(template: InvitationTemplate) {
+function getTemplateSnapshot(item: SupabaseOrderItemInput) {
+  if (item.templateSnapshot) {
+    return item.templateSnapshot;
+  }
+
   return {
-    id: template.id,
-    collectionSlug: template.collectionSlug,
-    productCode: template.productCode,
-    printProfile: template.printProfile,
-    storage: template.storage,
-    widthMm: template.widthMm,
-    heightMm: template.heightMm,
-    widthPx: template.widthPx,
-    heightPx: template.heightPx,
+    id: item.template.id,
+    printProfileId: item.template.printProfile.id,
+    widthMm: item.template.widthMm,
+    heightMm: item.template.heightMm,
   };
 }
 
@@ -119,7 +132,7 @@ export async function saveRenderedOrderToSupabase(input: SupabaseOrderInput) {
       product_id: item.productId,
       template_id: item.template.id,
       product_snapshot: getProductSnapshot(item),
-      template_snapshot: getTemplateSnapshot(item.template),
+      template_snapshot: getTemplateSnapshot(item),
       scene: item.scene,
     })),
   );

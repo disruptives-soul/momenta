@@ -43,9 +43,12 @@ export async function downloadCartZip(items: CartSnapshot[], orderId?: string) {
       format: "pdf",
       orderId,
       templates: items.map((item) => ({
+        cartItemId: item.id,
         templateId: item.template.id,
         data: {},
         scene: item.scene,
+        productSnapshot: item.product,
+        templateSnapshot: item.template,
       })),
     }),
   });

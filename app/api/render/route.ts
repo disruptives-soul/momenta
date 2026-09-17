@@ -17,6 +17,10 @@ import {
 import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
 import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
 import type {
+  PurchasedProductSnapshot,
+  PurchasedTemplateSnapshot,
+} from "@/features/purchased-projects/types/purchased-project";
+import type {
   PersonalizationLayoutOverrides,
   PersonalizationValues,
 } from "@/features/personalization/types/personalization-draft";
@@ -25,6 +29,7 @@ import type { TextElement } from "@/features/rendering/templates/template-types"
 export const runtime = "nodejs";
 
 type RenderRequestBody = {
+  cartItemId?: string;
   templateId?: string;
   format?: RenderFormat;
   data?: Partial<PersonalizationValues>;
@@ -32,13 +37,18 @@ type RenderRequestBody = {
   scene?: TextElement[];
   orderId?: string;
   templates?: RenderTemplateRequest[];
+  productSnapshot?: PurchasedProductSnapshot;
+  templateSnapshot?: PurchasedTemplateSnapshot;
 };
 
 type RenderTemplateRequest = {
+  cartItemId?: string;
   templateId?: string;
   data?: Partial<PersonalizationValues>;
   layout?: PersonalizationLayoutOverrides;
   scene?: TextElement[];
+  productSnapshot?: PurchasedProductSnapshot;
+  templateSnapshot?: PurchasedTemplateSnapshot;
 };
 
 type RenderFormat = "pdf" | "png" | "svg";
@@ -256,6 +266,8 @@ async function saveRenderedOrderMetadata(input: {
     itemId: string;
     productId: string;
     template: InvitationTemplate;
+    productSnapshot?: PurchasedProductSnapshot;
+    templateSnapshot?: PurchasedTemplateSnapshot;
     scene: TextElement[];
   }>;
   generatedFiles: Array<{
@@ -277,6 +289,8 @@ async function saveRenderedOrderMetadata(input: {
         id: item.itemId,
         productId: item.productId,
         template: item.template,
+        productSnapshot: item.productSnapshot,
+        templateSnapshot: item.templateSnapshot,
         scene: item.scene,
       })),
       generatedFiles: input.generatedFiles,
@@ -329,10 +343,13 @@ export async function POST(request: Request) {
       }
 
       return {
+        cartItemId: item.cartItemId,
         values: normalizeData(item.data),
         template,
         layout: item.layout,
         scene: item.scene,
+        productSnapshot: item.productSnapshot,
+        templateSnapshot: item.templateSnapshot,
       };
     });
 
@@ -352,6 +369,8 @@ export async function POST(request: Request) {
       itemId: string;
       productId: string;
       template: InvitationTemplate;
+      productSnapshot?: PurchasedProductSnapshot;
+      templateSnapshot?: PurchasedTemplateSnapshot;
       scene: TextElement[];
     }> = [];
     const generatedFilesMetadata: Array<{
@@ -373,11 +392,12 @@ export async function POST(request: Request) {
             usedFileNames,
           );
           const orderItemId = body.orderId
-            ? `item_${createStableId([
-                sanitizeStorageSegment(body.orderId),
-                item.template.id,
-                String(index),
-              ])}`
+            ? (item.cartItemId ??
+              `item_${createStableId([
+                  sanitizeStorageSegment(body.orderId),
+                  item.template.id,
+                  String(index),
+                ])}`)
             : null;
           const productId = `${item.template.collectionSlug}:${item.template.productCode}`;
 
@@ -386,6 +406,8 @@ export async function POST(request: Request) {
               itemId: orderItemId,
               productId,
               template: item.template,
+              productSnapshot: item.productSnapshot,
+              templateSnapshot: item.templateSnapshot,
               scene: item.scene ?? [],
             });
           }
@@ -520,11 +542,13 @@ export async function POST(request: Request) {
         contentType: "application/pdf",
       });
       if (storageKey && body.orderId) {
-        const orderItemId = `item_${createStableId([
-          sanitizeStorageSegment(body.orderId),
-          renderingTemplate.id,
-          "0",
-        ])}`;
+        const orderItemId = body.cartItemId
+          ? body.cartItemId
+          : `item_${createStableId([
+              sanitizeStorageSegment(body.orderId),
+              renderingTemplate.id,
+              "0",
+            ])}`;
         const result = await saveRenderedOrderMetadata({
           orderId: body.orderId,
           items: [
@@ -532,6 +556,8 @@ export async function POST(request: Request) {
               itemId: orderItemId,
               productId: `${renderingTemplate.collectionSlug}:${renderingTemplate.productCode}`,
               template: renderingTemplate,
+              productSnapshot: body.productSnapshot,
+              templateSnapshot: body.templateSnapshot,
               scene: body.scene ?? [],
             },
           ],

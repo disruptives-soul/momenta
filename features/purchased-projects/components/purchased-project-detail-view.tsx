@@ -17,6 +17,10 @@ import {
   reactivatePurchasedProject,
 } from "../services/purchased-project-lifecycle";
 import { localPurchasedProjectRepository } from "../services/local-purchased-project-repository";
+import {
+  getPurchasedProjectFromApi,
+  updatePurchasedProjectInApi,
+} from "../services/purchased-project-api";
 import { downloadPurchasedProjectPdf } from "../services/purchased-project-download";
 import type { PurchasedProject } from "../types/purchased-project";
 
@@ -38,7 +42,19 @@ export function PurchasedProjectDetailView({
   useEffect(() => {
     let active = true;
 
-    void localPurchasedProjectRepository.getById(projectId).then((nextProject) => {
+    async function loadProject() {
+      let nextProject: PurchasedProject | null = null;
+
+      try {
+        nextProject = await getPurchasedProjectFromApi(projectId);
+      } catch {
+        nextProject = null;
+      }
+
+      if (!nextProject) {
+        nextProject = await localPurchasedProjectRepository.getById(projectId);
+      }
+
       if (!active) {
         return;
       }
@@ -53,7 +69,9 @@ export function PurchasedProjectDetailView({
           templateId: nextProject.templateId,
         });
       }
-    });
+    }
+
+    void loadProject();
 
     return () => {
       active = false;
@@ -62,6 +80,11 @@ export function PurchasedProjectDetailView({
 
   async function updateProject(nextProject: PurchasedProject) {
     await localPurchasedProjectRepository.update(nextProject);
+    try {
+      await updatePurchasedProjectInApi(nextProject);
+    } catch {
+      // Local fallback keeps the MVP usable without Supabase writes.
+    }
     setProject(nextProject);
   }
 
@@ -112,7 +135,7 @@ export function PurchasedProjectDetailView({
             <Link href="/account/designs">Volver a mis disenos</Link>
           </Button>
         }
-        description="No encontramos este proyecto comprado en el almacenamiento local del piloto."
+        description="No encontramos este proyecto comprado."
         title="Diseno no encontrado"
       />
     );

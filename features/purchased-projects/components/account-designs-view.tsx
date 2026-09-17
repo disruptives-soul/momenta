@@ -17,6 +17,7 @@ import {
   localPurchasedProjectRepository,
   purchasedProjectsUpdatedEventName,
 } from "../services/local-purchased-project-repository";
+import { listPurchasedProjectsFromApi } from "../services/purchased-project-api";
 import { downloadPurchasedProjectPdf } from "../services/purchased-project-download";
 import type { PurchasedProject } from "../types/purchased-project";
 
@@ -30,6 +31,18 @@ export function AccountDesignsView() {
   >({});
 
   async function syncProjects() {
+    try {
+      const supabaseProjects = await listPurchasedProjectsFromApi();
+
+      if (supabaseProjects.length > 0) {
+        setProjects(supabaseProjects);
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      // Keep the MVP usable if Supabase is unavailable.
+    }
+
     setProjects(await localPurchasedProjectRepository.listByUser(DEMO_USER_ID));
     setIsLoading(false);
   }

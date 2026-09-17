@@ -30,30 +30,53 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 Do not commit service role keys.
 
-## Suggested first tables
+## Current MVP tables
 
 ```sql
-create table purchased_projects (
+create table if not exists momenta_orders (
   id text primary key,
-  user_id uuid,
-  order_id text,
-  product_snapshot jsonb not null,
-  template_snapshot jsonb not null,
-  scene jsonb not null,
-  status text not null default 'active',
+  status text not null default 'paid_demo',
+  total_cents integer not null default 0,
+  currency text not null default 'ARS',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table generated_files (
+create table if not exists momenta_order_items (
   id text primary key,
-  purchased_project_id text references purchased_projects(id),
-  format text not null,
+  order_id text not null references momenta_orders(id) on delete cascade,
+  product_id text not null,
+  template_id text not null,
+  product_snapshot jsonb not null,
+  template_snapshot jsonb not null,
+  scene jsonb not null default '[]'::jsonb,
+  editable_until timestamptz,
+  reactivation_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists momenta_generated_files (
+  id text primary key,
+  order_id text not null references momenta_orders(id) on delete cascade,
+  order_item_id text references momenta_order_items(id) on delete cascade,
+  kind text not null check (kind in ('pdf', 'zip')),
+  storage_provider text not null default 'r2',
   storage_key text not null,
   content_type text not null,
   created_at timestamptz not null default now()
 );
 ```
 
-This comes after Print Output QA and after R2 is connected. Until then, the local
-repository keeps the editor and checkout demo moving without blocking on auth.
+`/api/render` stores generated PDFs/ZIPs in R2 under
+`generated/orders/{orderId}/...` and persists the matching metadata here.
+`/account/designs` reads `momenta_order_items` as purchased projects, including
+the latest saved `TextElement[]` scene.
+
+If the table was created before post-purchase persistence, run:
+
+```sql
+alter table momenta_order_items
+  add column if not exists editable_until timestamptz,
+  add column if not exists reactivation_count integer not null default 0;
+```

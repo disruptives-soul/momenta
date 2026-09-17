@@ -25,6 +25,10 @@ import {
   formatEditableUntil,
 } from "../services/purchased-project-lifecycle";
 import { localPurchasedProjectRepository } from "../services/local-purchased-project-repository";
+import {
+  getPurchasedProjectFromApi,
+  updatePurchasedProjectInApi,
+} from "../services/purchased-project-api";
 import type { PurchasedProject } from "../types/purchased-project";
 
 const PersonalizationEditor = dynamic(
@@ -66,7 +70,19 @@ export function PurchasedProjectEditorView({
   useEffect(() => {
     let active = true;
 
-    void localPurchasedProjectRepository.getById(projectId).then((nextProject) => {
+    async function loadProject() {
+      let nextProject: PurchasedProject | null = null;
+
+      try {
+        nextProject = await getPurchasedProjectFromApi(projectId);
+      } catch {
+        nextProject = null;
+      }
+
+      if (!nextProject) {
+        nextProject = await localPurchasedProjectRepository.getById(projectId);
+      }
+
       if (!active) {
         return;
       }
@@ -93,7 +109,9 @@ export function PurchasedProjectEditorView({
         projectId: nextProject.id,
         templateId: nextProject.templateId,
       });
-    });
+    }
+
+    void loadProject();
 
     return () => {
       active = false;
@@ -116,6 +134,11 @@ export function PurchasedProjectEditorView({
     setProject(updatedProject);
     setScene(clampedScene);
     await localPurchasedProjectRepository.update(updatedProject);
+    try {
+      await updatePurchasedProjectInApi(updatedProject);
+    } catch {
+      // Local fallback keeps the MVP usable without Supabase writes.
+    }
 
     if (!editSavedTrackedRef.current) {
       editSavedTrackedRef.current = true;

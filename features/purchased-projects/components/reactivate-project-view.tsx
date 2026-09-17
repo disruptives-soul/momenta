@@ -13,6 +13,10 @@ import {
   reactivatePurchasedProject,
 } from "../services/purchased-project-lifecycle";
 import { localPurchasedProjectRepository } from "../services/local-purchased-project-repository";
+import {
+  getPurchasedProjectFromApi,
+  updatePurchasedProjectInApi,
+} from "../services/purchased-project-api";
 import type { PurchasedProject } from "../types/purchased-project";
 
 type ReactivateProjectViewProps = {
@@ -28,7 +32,19 @@ export function ReactivateProjectView({ projectId }: ReactivateProjectViewProps)
   useEffect(() => {
     let active = true;
 
-    void localPurchasedProjectRepository.getById(projectId).then((nextProject) => {
+    async function loadProject() {
+      let nextProject: PurchasedProject | null = null;
+
+      try {
+        nextProject = await getPurchasedProjectFromApi(projectId);
+      } catch {
+        nextProject = null;
+      }
+
+      if (!nextProject) {
+        nextProject = await localPurchasedProjectRepository.getById(projectId);
+      }
+
       if (!active) {
         return;
       }
@@ -43,7 +59,9 @@ export function ReactivateProjectView({ projectId }: ReactivateProjectViewProps)
           templateId: nextProject.templateId,
         });
       }
-    });
+    }
+
+    void loadProject();
 
     return () => {
       active = false;
@@ -59,6 +77,11 @@ export function ReactivateProjectView({ projectId }: ReactivateProjectViewProps)
     const updatedProject = reactivatePurchasedProject(project);
 
     await localPurchasedProjectRepository.update(updatedProject);
+    try {
+      await updatePurchasedProjectInApi(updatedProject);
+    } catch {
+      // Local fallback keeps the MVP usable without Supabase writes.
+    }
     trackValidationEvent("project_reactivated", {
       productId: updatedProject.productId,
       projectId: updatedProject.id,
@@ -79,7 +102,7 @@ export function ReactivateProjectView({ projectId }: ReactivateProjectViewProps)
             <Link href="/account/designs">Volver a mis disenos</Link>
           </Button>
         }
-        description="No encontramos este proyecto comprado en el piloto local."
+        description="No encontramos este proyecto comprado."
         title="Diseno no encontrado"
       />
     );

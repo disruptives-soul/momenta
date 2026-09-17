@@ -37,8 +37,12 @@ export async function downloadPurchasedProjectPdf(project: PurchasedProject) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      cartItemId: project.id,
       format: "pdf",
+      orderId: project.orderId ?? project.id,
+      productSnapshot: project.product,
       templateId: project.templateId,
+      templateSnapshot: project.template,
       data: {},
       scene: project.scene,
     }),
