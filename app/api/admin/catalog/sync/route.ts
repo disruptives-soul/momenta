@@ -119,6 +119,13 @@ type OcrTextResult = {
   needsReview: boolean;
 };
 
+type OcrLineResult = OcrTextResult & {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -432,6 +439,21 @@ function normalizeOcrText(value: string) {
     .trim();
 }
 
+function isWatermarkText(value: string) {
+  const normalized = value.toUpperCase().replace(/[^A-Z]/g, "");
+
+  return (
+    normalized.includes("MOMENTA") ||
+    normalized.includes("PREVIEW") ||
+    normalized.includes("VISTA") ||
+    normalized.includes("PREVIA")
+  );
+}
+
+function hasReadableTemplateText(value: string) {
+  return /[A-ZÀ-ÿ0-9&]/i.test(value) && !isWatermarkText(value);
+}
+
 async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
   const fallback = crops.map(() => ({
     text: "",
@@ -462,7 +484,7 @@ async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
         const result = await worker.recognize(crop);
         const confidence = Math.round(result.data.confidence ?? 0);
         const text = normalizeOcrText(result.data.text ?? "");
-        const hasUsableText = text.length > 0 && confidence >= 60;
+        const hasUsableText = hasReadableTemplateText(text) && confidence >= 60;
 
         results.push({
           text: hasUsableText ? text : "",
@@ -479,6 +501,110 @@ async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
     console.error("Tesseract OCR failed", error);
     return fallback;
   }
+}
+
+async function recognizePreviewTextLines(
+  preview: Uint8Array,
+  previewWidth: number,
+  previewHeight: number,
+): Promise<OcrLineResult[]> {
+  const maxOcrWidth = 1800;
+  const scale = previewWidth > maxOcrWidth ? maxOcrWidth / previewWidth : 1;
+  const ocrWidth = Math.max(1, Math.round(previewWidth * scale));
+  const ocrHeight = Math.max(1, Math.round(previewHeight * scale));
+  const fallback: OcrLineResult[] = [];
+
+  try {
+    const image = await sharp(preview)
+      .resize(ocrWidth, ocrHeight, { fit: "fill" })
+      .grayscale()
+      .normalize()
+      .sharpen()
+      .png()
+      .toBuffer();
+    const tesseract = await import("tesseract.js");
+    const worker = await tesseract.createWorker("eng", undefined, {
+      cachePath: tmpdir(),
+    });
+
+    try {
+      await worker.setParameters({
+        tessedit_pageseg_mode: tesseract.PSM.SPARSE_TEXT,
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300",
+      });
+
+      const result = await worker.recognize(image);
+      const lines =
+        result.data.blocks?.flatMap((block) =>
+          block.paragraphs.flatMap((paragraph) => paragraph.lines),
+        ) ?? [];
+
+      return lines
+        .map((line): OcrLineResult => {
+          const text = normalizeOcrText(line.text ?? "");
+          const confidence = Math.round(line.confidence ?? 0);
+          const width = Math.max(1, line.bbox.x1 - line.bbox.x0);
+          const height = Math.max(1, line.bbox.y1 - line.bbox.y0);
+          const hasUsableText = hasReadableTemplateText(text) && confidence >= 45;
+
+          return {
+            text: hasUsableText ? text : "",
+            confidence,
+            needsReview: !hasUsableText,
+            x: line.bbox.x0 + width / 2,
+            y: line.bbox.y0 + height * 0.82,
+            width,
+            height,
+          };
+        })
+        .filter((line) => line.text !== "")
+        .sort((a, b) => (Math.abs(a.y - b.y) < 8 ? a.x - b.x : a.y - b.y))
+        .slice(0, 16);
+    } finally {
+      await worker.terminate();
+    }
+  } catch (error) {
+    console.error("Tesseract full-preview OCR failed", error);
+    return fallback;
+  }
+}
+
+function createTextElementsFromOcrLines(
+  lines: OcrLineResult[],
+  sourceWidth: number,
+  sourceHeight: number,
+  previewWidth: number,
+  previewHeight: number,
+): AutoTextElement[] {
+  const scaleX = sourceWidth / previewWidth;
+  const scaleY = sourceHeight / previewHeight;
+
+  return lines.map((line, index) => {
+    const fontSize = Math.min(140, Math.max(24, line.height * scaleY * 0.94));
+
+    return {
+      id: `auto-text-${index + 1}`,
+      label: `Campo editable ${index + 1}`,
+      text: line.text,
+      source: "ocr",
+      confidence: line.confidence,
+      needsReview: line.needsReview,
+      x: Math.round(line.x * scaleX),
+      y: Math.round(line.y * scaleY),
+      width: Math.round(Math.max(120, line.width * scaleX * 1.2)),
+      fontFamily: "Arial, Helvetica, sans-serif",
+      pdfFont: "helvetica",
+      fontWeight: fontSize > 58 ? 700 : 500,
+      fontSize: Math.round(fontSize),
+      minFontSize: 24,
+      fill: "#202124",
+      align: "center",
+      maxLines: 1,
+      lineHeight: 1.15,
+      letterSpacing: 0,
+    };
+  });
 }
 
 function dilateMask(mask: Uint8Array, width: number, height: number) {
@@ -580,6 +706,18 @@ async function createAutoTextElementsFromPreview(
 
   if (sourceWidth <= 0 || sourceHeight <= 0 || previewWidth <= 0 || previewHeight <= 0) {
     return [];
+  }
+
+  const ocrLines = await recognizePreviewTextLines(preview, previewWidth, previewHeight);
+
+  if (ocrLines.length > 0) {
+    return createTextElementsFromOcrLines(
+      ocrLines,
+      sourceWidth,
+      sourceHeight,
+      previewWidth,
+      previewHeight,
+    );
   }
 
   const analysisWidth = Math.min(1000, sourceWidth);
