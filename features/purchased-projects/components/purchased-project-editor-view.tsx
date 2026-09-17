@@ -29,6 +29,7 @@ import {
   getPurchasedProjectFromApi,
   updatePurchasedProjectInApi,
 } from "../services/purchased-project-api";
+import { getRuntimeTemplateFromSnapshot } from "../services/purchased-template-snapshot";
 import type { PurchasedProject } from "../types/purchased-project";
 
 const PersonalizationEditor = dynamic(
@@ -101,7 +102,11 @@ export function PurchasedProjectEditorView({
       }
 
       setProject(nextProject);
-      setTemplate(getRenderingTemplate(nextProject.templateId) ?? null);
+      setTemplate(
+        getRuntimeTemplateFromSnapshot(nextProject.template) ??
+          getRenderingTemplate(nextProject.templateId) ??
+          null,
+      );
       setScene(nextProject.scene);
       setIsLoading(false);
       trackValidationEvent("post_purchase_editor_opened", {

@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join, normalize } from "node:path";
-import { createStorageProvider } from "./storage-provider-factory";
+import {
+  createStorageProvider,
+  getStorageProviderName,
+} from "./storage-provider-factory";
 
 const PUBLIC_CACHE_HEADERS = {
   "Cache-Control": "public, max-age=60, stale-while-revalidate=86400",
@@ -42,7 +45,7 @@ export async function getStorageImageResponse(input: {
           headers: {
             ...PUBLIC_CACHE_HEADERS,
             "Content-Type": object.contentType ?? input.contentType,
-            "X-Momenta-Asset-Source": "r2",
+            "X-Momenta-Asset-Source": getStorageProviderName(),
           },
         });
       }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { PurchasedTemplateSnapshot } from "@/features/purchased-projects/types/purchased-project";
 import type { TextElement } from "@/features/rendering/templates/template-types";
 
 export type CartSnapshot = {
@@ -19,12 +20,7 @@ export type CartSnapshot = {
     previewAlt?: string;
     visualFormat?: string;
   };
-  template: {
-    id: string;
-    printProfileId: string;
-    widthMm: number;
-    heightMm: number;
-  };
+  template: PurchasedTemplateSnapshot;
   scene: TextElement[];
   createdAt: string;
 };

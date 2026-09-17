@@ -19,6 +19,8 @@ type CollectionPageProps = {
   }>;
 };
 
+export const revalidate = 0;
+
 export async function generateMetadata({ params }: CollectionPageProps) {
   const { slug } = await params;
   const collection = await getCollectionBySlug(slug);

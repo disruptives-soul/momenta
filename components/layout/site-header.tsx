@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, UserCircle } from "lucide-react";
 import {
   cartUpdatedEventName,
   getCartSnapshotCount,
@@ -15,7 +15,6 @@ const navigation = [
   { href: "/catalog?type=banner", label: "Banners" },
   { href: "/catalog?type=stickers", label: "Stickers" },
   { href: "/collections/space-birthday", label: "Temas" },
-  { href: "/account/designs", label: "Mis disenos" },
 ];
 
 export function SiteHeader() {
@@ -46,10 +45,13 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/70 bg-surface/86 backdrop-blur-xl">
-      <Container className="flex min-h-14 items-center justify-between gap-4">
-        <Link className="inline-flex items-center gap-2 font-semibold" href="/">
-          <span className="grid size-7 place-items-center rounded-full bg-foreground text-xs font-semibold text-primary-foreground">
+    <header className="sticky top-0 z-40 border-b border-border/45 bg-surface/82 backdrop-blur-xl">
+      <Container className="flex min-h-16 items-center justify-between gap-4">
+        <Link
+          className="inline-flex items-center gap-2.5 font-serif text-lg font-semibold"
+          href="/"
+        >
+          <span className="grid size-8 place-items-center rounded-full bg-foreground text-xs font-semibold text-primary-foreground">
             M
           </span>
           <span>Momenta</span>
@@ -58,7 +60,7 @@ export function SiteHeader() {
         <nav aria-label="Navegacion principal" className="hidden gap-8 md:flex">
           {navigation.map((item) => (
             <Link
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
               href={item.href}
               key={item.href}
             >
@@ -67,16 +69,31 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <Link
-          className="inline-flex h-8 items-center gap-2 rounded-full bg-white px-3 text-sm font-semibold shadow-sm"
-          href="/cart"
-        >
-          <ShoppingBag aria-hidden="true" className="size-4" />
-          Carrito
-          <span className="grid size-5 place-items-center rounded-full bg-primary text-xs text-primary-foreground">
-            {cartCount}
-          </span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            className="hidden h-9 items-center rounded-full bg-surface px-4 text-sm font-semibold shadow-sm transition hover:bg-muted md:inline-flex"
+            href="/account/designs"
+          >
+            Mis disenos
+          </Link>
+          <Link
+            className="inline-flex h-9 items-center gap-2 rounded-full bg-surface px-3 text-sm font-semibold shadow-sm transition hover:bg-muted"
+            href="/cart"
+          >
+            <ShoppingBag aria-hidden="true" className="size-4" />
+            Carrito
+            <span className="grid size-5 place-items-center rounded-full bg-primary text-xs text-primary-foreground">
+              {cartCount}
+            </span>
+          </Link>
+          <Link
+            aria-label="Mis disenos"
+            className="hidden size-9 place-items-center rounded-full bg-foreground text-primary-foreground shadow-sm lg:grid"
+            href="/account/designs"
+          >
+            <UserCircle aria-hidden="true" className="size-4" />
+          </Link>
+        </div>
       </Container>
     </header>
   );

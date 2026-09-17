@@ -10,6 +10,8 @@ export const metadata = {
   description: "Explora productos imprimibles de Momenta por tipo de pieza.",
 };
 
+export const revalidate = 0;
+
 export default async function CatalogPage() {
   const collections = await listPublicCollections();
 
@@ -18,7 +20,7 @@ export default async function CatalogPage() {
       <DiscoveryEvent name="catalog_viewed" />
       <Container className="py-14 md:py-16">
         <div className="mb-10 max-w-3xl">
-          <Badge tone="neutral" className="rounded-full bg-white/72">
+          <Badge tone="neutral" className="rounded-full bg-surface/82">
             Catalogo
           </Badge>
           <h1 className="mt-5 text-5xl font-semibold leading-[0.98] md:text-7xl">

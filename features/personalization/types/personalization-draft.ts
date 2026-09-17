@@ -1,10 +1,12 @@
 import { spaceBirthdayInvitationTemplate } from "@/features/rendering/templates/space-birthday-invitation-template";
 import { createTextSceneFromTemplate } from "@/features/rendering/templates/text-scene";
 import type {
+  InvitationTemplate,
   TemplateFontAsset,
   TemplatePdfFont,
   TextElement,
 } from "@/features/rendering/templates/template-types";
+import type { PrototypeProduct } from "@/features/products/data/mock-products";
 
 export const demoPersonalizationProjectId = "demo-space-birthday";
 
@@ -42,7 +44,7 @@ export type PersonalizationTextScenes = Record<string, TextElement[]>;
 
 export type PersonalizationDraft = {
   projectId: string;
-  collectionSlug: "space-birthday";
+  collectionSlug: string;
   productCode: string;
   templateId: string;
   currentStep: string;
@@ -50,6 +52,8 @@ export type PersonalizationDraft = {
   valuesByTemplate: PersonalizationTemplateValues;
   layouts: PersonalizationTemplateLayouts;
   scenes: PersonalizationTextScenes;
+  productSnapshot?: PrototypeProduct;
+  templateSnapshot?: InvitationTemplate;
 };
 
 export const defaultPersonalizationValues: PersonalizationValues =

@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #edf2fb;
-  --foreground: #202337;
-  --surface: #ffffff;
-  --surface-strong: #f6f8fd;
-  --muted: #eef3fb;
-  --muted-foreground: #73798a;
-  --border: #dfe5f0;
-  --primary: #5f7eea;
+  --background: #f7f1ea;
+  --foreground: #282118;
+  --surface: #fffaf4;
+  --surface-strong: #f1e5da;
+  --muted: #f4ebe3;
+  --muted-foreground: #8b7d72;
+  --border: #eadbd0;
+  --primary: #a84d31;
   --primary-foreground: #ffffff;
-  --accent: #202337;
+  --accent: #273a2f;
   --accent-foreground: #ffffff;
-  --success: #15803d;
-  --warning: #b45309;
-  --danger: #b91c1c;
-  --radius: 18px;
-  --shadow-sm: 0 10px 30px rgb(32 35 55 / 0.05);
-  --shadow-md: 0 24px 60px rgb(32 35 55 / 0.12);
+  --success: #5f7f54;
+  --warning: #b46f34;
+  --danger: #a13a31;
+  --radius: 22px;
+  --shadow-sm: 0 12px 35px rgb(83 54 37 / 0.07);
+  --shadow-md: 0 28px 70px rgb(83 54 37 / 0.15);
 }
 
 @theme inline {
@@ -35,9 +35,9 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
-  --radius-sm: 10px;
+  --radius-sm: 12px;
   --radius-md: var(--radius);
-  --radius-lg: 28px;
+  --radius-lg: 34px;
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --spacing-page: 1.25rem;
@@ -82,5 +82,5 @@ select {
 }
 
 ::selection {
-  background: rgb(15 118 110 / 0.18);
+  background: rgb(168 77 49 / 0.18);
 }

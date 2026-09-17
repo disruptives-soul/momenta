@@ -5,8 +5,11 @@ import type {
   PersonalizationValues,
 } from "@/features/personalization/types/personalization-draft";
 import { cn } from "@/lib/utils";
-import type { TextElement } from "../templates/template-types";
-import { getTemplatePreviewAssetSrc } from "../templates/template-assets";
+import type { InvitationTemplate, TextElement } from "../templates/template-types";
+import {
+  getTemplateMasterAssetSrc,
+  getTemplatePreviewAssetSrc,
+} from "../templates/template-assets";
 import { getRenderingTemplate } from "../templates/template-registry";
 import {
   getArcTextCharacters,
@@ -23,6 +26,7 @@ type TemplatePreviewProps = {
   ariaLabel?: string;
   layout?: PersonalizationLayoutOverrides;
   scene?: TextElement[];
+  template?: InvitationTemplate;
   templateId?: string;
   compact?: boolean;
 };
@@ -68,11 +72,14 @@ export function TemplatePreview({
   ariaLabel,
   layout,
   scene,
+  template: explicitTemplate,
   templateId = "space-birthday-invitation-v1",
   compact = false,
 }: TemplatePreviewProps) {
   const template =
-    getRenderingTemplate(templateId) ?? getRenderingTemplate("space-birthday-invitation-v1");
+    explicitTemplate ??
+    getRenderingTemplate(templateId) ??
+    getRenderingTemplate("space-birthday-invitation-v1");
 
   if (!template) {
     return null;
@@ -80,6 +87,9 @@ export function TemplatePreview({
 
   const widthPx = template.widthPx ?? 1748;
   const heightPx = template.heightPx ?? 2480;
+  const backgroundSrc = scene
+    ? getTemplateMasterAssetSrc(template)
+    : getTemplatePreviewAssetSrc(template);
   const watermarkPatternId = `momenta-watermark-${template.id.replace(/[^a-zA-Z0-9]/g, "-")}`;
   const hasLongText = scene
     ? scene.some((element) => element.text.length > 92)
@@ -98,7 +108,7 @@ export function TemplatePreview({
       >
         <image
           height={heightPx}
-          href={getTemplatePreviewAssetSrc(template)}
+          href={backgroundSrc}
           preserveAspectRatio="xMidYMid slice"
           width={widthPx}
           x="0"

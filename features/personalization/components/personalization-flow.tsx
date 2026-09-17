@@ -63,13 +63,12 @@ type PersonalizationHistory = {
 };
 
 type PersonalizationFlowProps = {
+  product?: PrototypeProduct;
   productSlug?: string;
+  template?: InvitationTemplate;
 };
 
-function getTemplateDefaults(templateId: string): PersonalizationValues {
-  const template =
-    renderingTemplates.find((item) => item.id === templateId) ?? renderingTemplates[0];
-
+function getTemplateDefaults(template: InvitationTemplate): PersonalizationValues {
   return Object.fromEntries(
     Object.entries(template.fields).map(([key, field]) => [
       key,
@@ -84,11 +83,11 @@ function scopeDraftToProduct(
   template: InvitationTemplate,
 ): PersonalizationDraft {
   const templateValues =
-    draft.valuesByTemplate[template.id] ?? getTemplateDefaults(template.id);
+    draft.valuesByTemplate[template.id] ?? getTemplateDefaults(template);
 
   return {
     ...draft,
-    collectionSlug: product.collectionSlug as PersonalizationDraft["collectionSlug"],
+    collectionSlug: product.collectionSlug,
     productCode: product.slug,
     templateId: template.id,
     values: templateValues,
@@ -105,15 +104,24 @@ function scopeDraftToProduct(
       [template.id]:
         draft.scenes[template.id] ?? createTextSceneFromTemplate(template),
     },
+    productSnapshot: product,
+    templateSnapshot: template,
   };
 }
 
-export function PersonalizationFlow({ productSlug = "invitation" }: PersonalizationFlowProps) {
+export function PersonalizationFlow({
+  product,
+  productSlug = "invitation",
+  template,
+}: PersonalizationFlowProps) {
   const router = useRouter();
   const activeProduct =
-    getProductBySlug(productSlug) ?? getProductBySlug("invitation") ?? listProducts()[0];
+    product ??
+    getProductBySlug(productSlug) ??
+    getProductBySlug("invitation") ??
+    listProducts()[0];
   const productTemplate =
-    getRenderingTemplateForProduct(activeProduct) ?? renderingTemplates[0];
+    template ?? getRenderingTemplateForProduct(activeProduct) ?? renderingTemplates[0];
   const [draft, setDraft] = useState<PersonalizationDraft>(
     () =>
       scopeDraftToProduct(

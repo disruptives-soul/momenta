@@ -6,16 +6,16 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 const toneClasses = {
-  free: "border-primary/30 bg-primary/10 text-primary",
-  premium: "border-accent/30 bg-accent/15 text-accent-foreground",
-  neutral: "border-border bg-muted text-muted-foreground",
+  free: "border-success/25 bg-success/10 text-success",
+  premium: "border-primary/25 bg-primary/10 text-primary",
+  neutral: "border-white/70 bg-surface text-muted-foreground",
 };
 
 export function Badge({ className, tone = "neutral", ...props }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium",
+        "inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold",
         toneClasses[tone],
         className,
       )}

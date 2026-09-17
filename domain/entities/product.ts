@@ -5,7 +5,7 @@ export type ProductAccess = "free" | "premium";
 export type ProductOutputFormat = "png" | "pdf";
 
 export type ProductStorageAssets = {
-  provider: "local" | "r2";
+  provider: "local" | "local-file" | "r2";
   masterKey: string;
   previewKey: string;
   templateKey: string;

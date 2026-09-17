@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DiscoveryEvent } from "@/features/analytics/components/discovery-event";
 import { CatalogDiscovery } from "@/features/catalog/components/catalog-discovery";
+import { FeaturedCollectionCarousel } from "@/features/collections/components/featured-collection-carousel";
 import { listPublicCollections } from "@/features/collections/services/list-public-collections";
 
 export default async function HomePage() {
@@ -14,12 +15,16 @@ export default async function HomePage() {
     <main>
       <DiscoveryEvent name="home_viewed" />
 
+      <Container className="pt-8 md:pt-12">
+        <FeaturedCollectionCarousel />
+      </Container>
+
       <section className="relative overflow-hidden">
-        <div className="absolute right-[18%] top-0 hidden h-24 w-24 rounded-b-[2rem] bg-white/52 lg:block" />
-        <div className="absolute right-[24%] top-28 hidden size-14 rounded-[1rem] bg-primary/18 lg:block" />
-        <Container className="py-16 md:py-20">
+        <div className="absolute right-[18%] top-0 hidden h-24 w-24 rounded-b-[2rem] bg-surface/55 lg:block" />
+        <div className="absolute right-[24%] top-28 hidden size-14 rounded-[1rem] bg-primary/14 lg:block" />
+        <Container className="py-12 md:py-16">
           <div className="max-w-3xl">
-            <Badge tone="neutral" className="rounded-full bg-white/72">
+            <Badge tone="neutral" className="rounded-full bg-surface/82">
               Disenos tematicos listos para personalizar
             </Badge>
             <h1 className="mt-6 max-w-3xl text-5xl font-semibold leading-[0.98] md:text-7xl">
@@ -32,10 +37,10 @@ export default async function HomePage() {
               pieza, personalizala con tus datos y llevala al carrito en minutos.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Button asChild className="rounded-full">
+              <Button asChild>
                 <Link href="/catalog">Explorar catalogo</Link>
               </Button>
-              <Button asChild className="rounded-full" variant="secondary">
+              <Button asChild variant="secondary">
                 <Link href="/products/invitation">Ver invitacion destacada</Link>
               </Button>
             </div>

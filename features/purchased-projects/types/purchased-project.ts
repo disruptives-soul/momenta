@@ -1,4 +1,7 @@
-import type { TextElement } from "@/features/rendering/templates/template-types";
+import type {
+  InvitationTemplate,
+  TextElement,
+} from "@/features/rendering/templates/template-types";
 
 export type GeneratedVersion = {
   id: string;
@@ -29,7 +32,7 @@ export type PurchasedTemplateSnapshot = {
   printProfileId: string;
   widthMm: number;
   heightMm: number;
-};
+} & Partial<InvitationTemplate>;
 
 export type PurchasedProject = {
   id: string;

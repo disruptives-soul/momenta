@@ -14,11 +14,6 @@ type CatalogDiscoveryProps = {
   collections: PublicCollection[];
 };
 
-const themeFilters = [
-  { id: "all", label: "Todas las tematicas" },
-  { id: "space-birthday", label: "Space Birthday" },
-] as const;
-
 export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -56,6 +51,13 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
       label: pieceType.label,
     })),
   ];
+  const themeFilters = [
+    { id: "all", label: "Todas las tematicas" },
+    ...collections.map((collection) => ({
+      id: collection.slug,
+      label: collection.name,
+    })),
+  ];
 
   function updateFilters(nextType: string, nextTheme: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -76,8 +78,8 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
-      <aside className="h-fit rounded-[1.35rem] bg-white/72 p-5 shadow-sm lg:sticky lg:top-20">
+    <div className="grid gap-7 lg:grid-cols-[14rem_minmax(0,1fr)]">
+      <aside className="h-fit rounded-[1.5rem] border border-white/70 bg-surface/82 p-5 shadow-sm lg:sticky lg:top-24">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           Filtros
         </p>
@@ -93,8 +95,8 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
                   className={cn(
                     "rounded-full px-3 py-2 text-left text-sm font-semibold transition",
                     activePieceType === filter.id
-                      ? "bg-foreground text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? "bg-foreground text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-surface-strong hover:text-foreground",
                   )}
                   key={filter.id}
                   onClick={() => updateFilters(filter.id, activeTheme)}
@@ -116,8 +118,8 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
                   className={cn(
                     "rounded-full px-3 py-2 text-left text-sm font-semibold transition",
                     activeTheme === filter.id
-                      ? "bg-foreground text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? "bg-foreground text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-surface-strong hover:text-foreground",
                   )}
                   key={filter.id}
                   onClick={() => updateFilters(activePieceType, filter.id)}
@@ -134,7 +136,7 @@ export function CatalogDiscovery({ collections }: CatalogDiscoveryProps) {
       <section>
         <div className="mb-5 flex items-center justify-between gap-3">
           <h2 className="font-serif text-2xl font-semibold">Todos los disenos</h2>
-          <p className="text-sm font-medium text-muted-foreground">
+          <p className="rounded-full bg-surface px-3 py-1.5 text-sm font-semibold text-muted-foreground shadow-sm">
             {filteredProducts.length} piezas
           </p>
         </div>

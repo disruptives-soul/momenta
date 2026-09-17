@@ -10,9 +10,9 @@ import { EventLink } from "@/features/analytics/components/event-link";
 import { ProductOptionCard } from "@/features/products/components/product-option-card";
 import { SaveProductButton } from "@/features/products/components/save-product-button";
 import {
-  getProductBySlug,
-  getRelatedProducts,
-} from "@/features/products/services/product-catalog";
+  getCatalogProductBySlug,
+  getCatalogRelatedProducts,
+} from "@/features/products/services/server-product-catalog";
 import { getProductPreviewAssetSrc } from "@/features/products/services/product-assets";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,8 @@ type ProductPageProps = {
     productSlug: string;
   }>;
 };
+
+export const revalidate = 0;
 
 const previewAspectClass = {
   landscape: "aspect-[4/3]",
@@ -38,7 +40,7 @@ function getPriceLabel(priceLabel?: string) {
 
 export async function generateMetadata({ params }: ProductPageProps) {
   const { productSlug } = await params;
-  const product = getProductBySlug(productSlug);
+  const product = await getCatalogProductBySlug(productSlug);
 
   if (!product) {
     return {
@@ -54,13 +56,13 @@ export async function generateMetadata({ params }: ProductPageProps) {
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { productSlug } = await params;
-  const product = getProductBySlug(productSlug);
+  const product = await getCatalogProductBySlug(productSlug);
 
   if (!product) {
     notFound();
   }
 
-  const relatedProducts = getRelatedProducts(product).slice(0, 3);
+  const relatedProducts = (await getCatalogRelatedProducts(product)).slice(0, 3);
   const isPremium = product.access === "premium";
 
   return (
@@ -77,11 +79,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <span>{product.pieceTypeName}</span>
         </nav>
 
-        <section className="rounded-[2rem] bg-white/76 p-5 shadow-sm md:p-8">
+        <section className="rounded-[2rem] border border-white/70 bg-surface/82 p-5 shadow-sm md:p-8">
           <div className="grid gap-8 lg:grid-cols-[1.1fr_0.95fr] lg:items-center">
             <div
               className={cn(
-                "relative overflow-hidden rounded-[1.35rem] bg-muted",
+                "relative overflow-hidden rounded-[1.45rem] bg-muted shadow-sm",
                 previewAspectClass[product.prototype.previewAspect],
               )}
             >
@@ -93,7 +95,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 sizes="(min-width: 1024px) 42vw, 92vw"
                 src={getProductPreviewAssetSrc(product)}
               />
-              <div className="absolute bottom-[-0.8rem] right-[-0.4rem] rounded-[1rem] bg-white px-5 py-4 shadow-md">
+              <div className="absolute bottom-[-0.8rem] right-[-0.4rem] rounded-[1.1rem] bg-surface px-5 py-4 shadow-md">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Vista previa
                 </p>
@@ -105,13 +107,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
             <div className="max-w-xl">
               <div className="flex flex-wrap gap-2">
-                <Badge tone="neutral" className="rounded-full bg-white">
+                <Badge tone="neutral" className="rounded-full bg-background">
                   {product.pieceTypeName}
                 </Badge>
-                <Badge tone="neutral" className="rounded-full bg-white">
+                <Badge tone="neutral" className="rounded-full bg-background">
                   {product.prototype.visualFormat}
                 </Badge>
-                <Badge tone="neutral" className="rounded-full bg-white">
+                <Badge tone={isPremium ? "premium" : "free"} className="rounded-full bg-background">
                   {isPremium ? "Premium" : "Gratis"}
                 </Badge>
               </div>
@@ -127,7 +129,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </p>
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <Button asChild className="rounded-full px-6 shadow-md">
+                <Button asChild className="px-7 shadow-md" size="lg">
                   <EventLink
                     eventName="personalization_started"
                     eventPayload={{

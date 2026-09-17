@@ -44,8 +44,10 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
   const [isHydrated, setIsHydrated] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const isValidProject = projectId === demoPersonalizationProjectId;
-  const template = getRenderingTemplate(draft.templateId);
-  const product = template ? getProductForRenderingTemplate(template) : null;
+  const template = draft.templateSnapshot ?? getRenderingTemplate(draft.templateId);
+  const product =
+    draft.productSnapshot ??
+    (template ? getProductForRenderingTemplate(template) : null);
   const scene = template ? getDraftTemplateScene(draft, template.id) : [];
   const editHref = product
     ? `/products/${product.slug}/personalize`
@@ -121,6 +123,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
         visualFormat: product.prototype.visualFormat,
       },
       template: {
+        ...template,
         id: template.id,
         printProfileId: template.printProfile.id,
         widthMm: template.widthMm,
@@ -158,6 +161,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
         <TemplatePreview
           ariaLabel={`Vista previa de ${product.name} personalizado`}
           scene={scene}
+          template={template}
           templateId={template.id}
           values={draft.valuesByTemplate[template.id] ?? draft.values}
         />

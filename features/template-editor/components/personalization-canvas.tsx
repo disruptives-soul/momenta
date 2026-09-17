@@ -14,7 +14,7 @@ import type {
   InvitationTemplate,
   TextElement,
 } from "@/features/rendering/templates/template-types";
-import { getTemplatePreviewAssetSrc } from "@/features/rendering/templates/template-assets";
+import { getTemplateMasterAssetSrc } from "@/features/rendering/templates/template-assets";
 import { useTemplateScale } from "../hooks/use-template-scale";
 import { getScaledFontSize } from "../services/template-layout";
 import { EditableText } from "./editable-text";
@@ -80,7 +80,7 @@ export function PersonalizationCanvas({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const scale = useTemplateScale(containerRef, template, zoom);
-  const image = useCanvasImage(getTemplatePreviewAssetSrc(template));
+  const image = useCanvasImage(getTemplateMasterAssetSrc(template));
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [alignmentGuides, setAlignmentGuides] = useState<
     CanvasAlignmentGuide[]

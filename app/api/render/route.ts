@@ -14,7 +14,7 @@ import {
   loadOriginalMasterJpgBytes,
   TemplatePrintProfileError,
 } from "@/features/rendering/templates/load-runtime-template";
-import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
+import { getRenderingTemplateAsync } from "@/features/rendering/templates/headless-template-registry";
 import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
 import type {
   PurchasedProductSnapshot,
@@ -331,12 +331,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const templates = body.templates.map((item) => {
+    const templates = await Promise.all(body.templates.map(async (item) => {
       if (!item.templateId) {
         return null;
       }
 
-      const template = getRenderingTemplate(item.templateId);
+      const template = await getRenderingTemplateAsync(item.templateId);
 
       if (!template) {
         return null;
@@ -351,7 +351,7 @@ export async function POST(request: Request) {
         productSnapshot: item.productSnapshot,
         templateSnapshot: item.templateSnapshot,
       };
-    });
+    }));
 
     if (templates.some((item) => item === null)) {
       return NextResponse.json(
@@ -512,7 +512,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const renderingTemplate = getRenderingTemplate(body.templateId);
+  const renderingTemplate = await getRenderingTemplateAsync(body.templateId);
 
   if (!renderingTemplate) {
     return NextResponse.json(

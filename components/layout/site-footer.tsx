@@ -15,13 +15,13 @@ export function SiteFooter() {
   }
 
   return (
-    <footer className="border-t border-white/70 bg-surface/72">
+    <footer className="border-t border-border/45 bg-surface/70">
       <Container className="flex min-h-20 flex-wrap items-center justify-between gap-5 py-5 text-sm text-muted-foreground">
         <Link
-          className="inline-flex items-center gap-2 font-semibold text-foreground"
+          className="inline-flex items-center gap-2 font-serif font-semibold text-foreground"
           href="/"
         >
-          <span className="grid size-7 place-items-center rounded-full bg-foreground text-xs text-primary-foreground">
+          <span className="grid size-7 place-items-center rounded-full bg-foreground text-xs font-sans text-primary-foreground">
             M
           </span>
           Momenta

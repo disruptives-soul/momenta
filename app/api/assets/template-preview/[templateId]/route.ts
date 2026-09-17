@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
+import { getRenderingTemplateAsync } from "@/features/rendering/templates/headless-template-registry";
 import { getStorageImageResponse } from "@/infrastructure/storage/storage-asset-response";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function GET(
   { params }: TemplatePreviewAssetRouteProps,
 ) {
   const { templateId } = await params;
-  const template = getRenderingTemplate(templateId);
+  const template = await getRenderingTemplateAsync(templateId);
 
   if (!template) {
     notFound();
@@ -23,7 +23,8 @@ export async function GET(
 
   return getStorageImageResponse({
     key: template.storage?.previewKey,
-    fallbackPublicSrc: template.preview.src,
+    fallbackPublicSrc:
+      template.preview.src || "/momenta/space-birthday/previews/invitacion-a3.webp",
     contentType: "image/webp",
     fallbackContentType: "image/webp",
   });

@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { LoadingState } from "@/components/ui/status-state";
 import { PersonalizationFlow } from "@/features/personalization/components/personalization-flow";
-import { getProductBySlug } from "@/features/products/services/product-catalog";
+import { getCatalogProductBySlug } from "@/features/products/services/server-product-catalog";
+import { getRenderingTemplateAsync } from "@/features/rendering/templates/headless-template-registry";
 
 type ProductPersonalizePageProps = {
   params: Promise<{
@@ -10,9 +11,11 @@ type ProductPersonalizePageProps = {
   }>;
 };
 
+export const revalidate = 0;
+
 export async function generateMetadata({ params }: ProductPersonalizePageProps) {
   const { productSlug } = await params;
-  const product = getProductBySlug(productSlug);
+  const product = await getCatalogProductBySlug(productSlug);
 
   if (!product) {
     return {
@@ -30,9 +33,15 @@ export default async function ProductPersonalizePage({
   params,
 }: ProductPersonalizePageProps) {
   const { productSlug } = await params;
-  const product = getProductBySlug(productSlug);
+  const product = await getCatalogProductBySlug(productSlug);
 
   if (!product) {
+    notFound();
+  }
+
+  const template = await getRenderingTemplateAsync(product.templateId);
+
+  if (!template) {
     notFound();
   }
 
@@ -46,7 +55,11 @@ export default async function ProductPersonalizePage({
           />
         }
       >
-        <PersonalizationFlow productSlug={product.slug} />
+        <PersonalizationFlow
+          product={product}
+          productSlug={product.slug}
+          template={template}
+        />
       </Suspense>
     </main>
   );
