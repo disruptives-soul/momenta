@@ -540,6 +540,8 @@ async function recognizePreviewTextLines(
           block.paragraphs.flatMap((paragraph) => paragraph.lines),
         ) ?? [];
 
+      const inverseScale = scale > 0 ? 1 / scale : 1;
+
       return lines
         .map((line): OcrLineResult => {
           const text = normalizeOcrText(line.text ?? "");
@@ -552,10 +554,10 @@ async function recognizePreviewTextLines(
             text: hasUsableText ? text : "",
             confidence,
             needsReview: !hasUsableText,
-            x: line.bbox.x0 + width / 2,
-            y: line.bbox.y0 + height * 0.82,
-            width,
-            height,
+            x: (line.bbox.x0 + width / 2) * inverseScale,
+            y: (line.bbox.y0 + height * 0.82) * inverseScale,
+            width: width * inverseScale,
+            height: height * inverseScale,
           };
         })
         .filter((line) => line.text !== "")
