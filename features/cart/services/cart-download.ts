@@ -29,7 +29,7 @@ function downloadBlob(blob: Blob, fileName: string) {
   }, 30_000);
 }
 
-export async function downloadCartZip(items: CartSnapshot[]) {
+export async function downloadCartZip(items: CartSnapshot[], orderId?: string) {
   if (items.length === 0) {
     throw new Error("Cannot download an empty cart.");
   }
@@ -41,6 +41,7 @@ export async function downloadCartZip(items: CartSnapshot[]) {
     },
     body: JSON.stringify({
       format: "pdf",
+      orderId,
       templates: items.map((item) => ({
         templateId: item.template.id,
         data: {},

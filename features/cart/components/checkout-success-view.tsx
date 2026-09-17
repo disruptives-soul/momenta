@@ -48,11 +48,11 @@ export function CheckoutSuccessView() {
     });
   }, []);
 
-  async function downloadOrderZip(items: CartSnapshot[]) {
+  async function downloadOrderZip(items: CartSnapshot[], orderId: string) {
     setDownloadState("downloading");
 
     try {
-      await downloadCartZip(items);
+      await downloadCartZip(items, orderId);
       setDownloadState("completed");
     } catch {
       setDownloadState("failed");
@@ -65,7 +65,7 @@ export function CheckoutSuccessView() {
     }
 
     autoDownloadAttemptedRef.current = true;
-    void downloadOrderZip(order.items);
+    void downloadOrderZip(order.items, order.id);
   }, [order]);
 
   if (orderLoadState === "loading") {
@@ -127,7 +127,7 @@ export function CheckoutSuccessView() {
         <div className="flex flex-wrap justify-center gap-3">
           <Button
             disabled={downloadState === "downloading"}
-            onClick={() => downloadOrderZip(order.items)}
+            onClick={() => downloadOrderZip(order.items, order.id)}
             type="button"
           >
             <Download aria-hidden="true" />

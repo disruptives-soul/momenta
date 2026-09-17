@@ -5,6 +5,7 @@ import {
   spaceInvitationProduct,
   spaceStickersPackProduct,
 } from "@/features/products/data/mock-products";
+import { createStorageProvider } from "@/infrastructure/storage/storage-provider-factory";
 import { LocalRenderProvider } from "@/features/rendering/services/local-render-provider";
 import { renderPersonalizedInvitationPdf } from "@/features/rendering/services/pdf-template-renderer";
 import { createZip } from "@/features/rendering/services/zip-writer";
@@ -28,6 +29,7 @@ type RenderRequestBody = {
   data?: Partial<PersonalizationValues>;
   layout?: PersonalizationLayoutOverrides;
   scene?: TextElement[];
+  orderId?: string;
   templates?: RenderTemplateRequest[];
 };
 
@@ -99,6 +101,40 @@ function getProductsZipFileName(templates: InvitationTemplate[]) {
     .slice(0, 8);
 
   return `momenta-files-${shortId}.zip`;
+}
+
+function sanitizeStorageSegment(value: string) {
+  return (
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 96) || `order-${Date.now()}`
+  );
+}
+
+function getGeneratedOrderPrefix(orderId: string) {
+  return `generated/orders/${sanitizeStorageSegment(orderId)}`;
+}
+
+async function storeGeneratedObject(input: {
+  orderId?: string;
+  key: string;
+  body: Uint8Array;
+  contentType: string;
+}) {
+  if (!input.orderId) {
+    return null;
+  }
+
+  await createStorageProvider().putObject({
+    key: `${getGeneratedOrderPrefix(input.orderId)}/${input.key}`,
+    body: input.body,
+    contentType: input.contentType,
+  });
+
+  return `${getGeneratedOrderPrefix(input.orderId)}/${input.key}`;
 }
 
 function getUniqueZipFileName(fileName: string, usedFileNames: Set<string>) {
@@ -176,11 +212,13 @@ function renderFileResponse(
   template: InvitationTemplate,
   format: RenderFormat,
   contentType: string,
+  headers?: HeadersInit,
 ) {
   return new Response(body, {
     headers: {
       "Content-Disposition": `attachment; filename="${getFileName(template, format)}"`,
       "Content-Type": contentType,
+      ...headers,
     },
   });
 }
@@ -189,11 +227,13 @@ function renderNamedFileResponse(
   body: BodyInit,
   fileName: string,
   contentType: string,
+  headers?: HeadersInit,
 ) {
   return new Response(body, {
     headers: {
       "Content-Disposition": `attachment; filename="${fileName}"`,
       "Content-Type": contentType,
+      ...headers,
     },
   });
 }
@@ -263,6 +303,9 @@ export async function POST(request: Request) {
     const validTemplates = templates.filter((item) => item !== null);
 
     let zip: Uint8Array;
+    let zipStorageKey: string | null = null;
+    let pdfStorageKeys: string[] = [];
+    let zipFileName = "";
 
     try {
       const usedFileNames = new Set<string>();
@@ -281,15 +324,47 @@ export async function POST(request: Request) {
         })),
       );
 
+      if (body.orderId) {
+        pdfStorageKeys = (
+          await Promise.all(
+            pdfFiles.map((file) =>
+              storeGeneratedObject({
+                orderId: body.orderId,
+                key: `pdfs/${file.name}`,
+                body: file.bytes,
+                contentType: "application/pdf",
+              }),
+            ),
+          )
+        ).filter((key) => key !== null);
+      }
+
       zip = createZip(pdfFiles);
+      zipFileName = getProductsZipFileName(
+        validTemplates.map((item) => item.template),
+      );
+      zipStorageKey = await storeGeneratedObject({
+        orderId: body.orderId,
+        key: zipFileName,
+        body: zip,
+        contentType: "application/zip",
+      });
     } catch (error) {
       return renderErrorResponse(error);
     }
 
     return renderNamedFileResponse(
       bytesToResponseBody(zip),
-      getProductsZipFileName(validTemplates.map((item) => item.template)),
+      zipFileName,
       "application/zip",
+      {
+        ...(zipStorageKey
+          ? { "X-Momenta-Generated-Zip-Key": zipStorageKey }
+          : {}),
+        ...(pdfStorageKeys.length
+          ? { "X-Momenta-Generated-Pdf-Keys": pdfStorageKeys.join(",") }
+          : {}),
+      },
     );
   }
 
@@ -313,6 +388,7 @@ export async function POST(request: Request) {
 
   if (format === "pdf") {
     let pdf: Uint8Array;
+    let storageKey: string | null = null;
 
     try {
       pdf = await renderPersonalizedInvitationPdf(
@@ -321,6 +397,12 @@ export async function POST(request: Request) {
         body.layout,
         body.scene,
       );
+      storageKey = await storeGeneratedObject({
+        orderId: body.orderId,
+        key: getProductPdfFileName(renderingTemplate),
+        body: pdf,
+        contentType: "application/pdf",
+      });
     } catch (error) {
       return renderErrorResponse(error);
     }
@@ -330,6 +412,7 @@ export async function POST(request: Request) {
       renderingTemplate,
       format,
       "application/pdf",
+      storageKey ? { "X-Momenta-Generated-Key": storageKey } : undefined,
     );
   }
 
