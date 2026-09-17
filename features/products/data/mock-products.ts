@@ -29,6 +29,18 @@ const spaceCollection = {
   name: "Space Birthday",
 } as const;
 
+function getSpaceProductAssets(pieceSlug: string) {
+  const versionPrefix = `collections/${spaceCollection.slug}/${pieceSlug}/v1`;
+
+  return {
+    provider: "r2" as const,
+    masterKey: `${versionPrefix}/master.jpg`,
+    previewKey: `${versionPrefix}/preview.webp`,
+    templateKey: `${versionPrefix}/template.json`,
+    generatedPrefix: `generated/${spaceCollection.slug}/${pieceSlug}`,
+  };
+}
+
 export type PrototypeProduct = Product & {
   priceLabel?: string;
   prototype: {
@@ -81,6 +93,7 @@ export const spaceInvitationProduct: PrototypeProduct = {
   widthMm: 297,
   heightMm: 420,
   templateId: "tpl_space_invitation_v1",
+  assets: getSpaceProductAssets("invitation-a3"),
   variables: [
     ...birthdayTextVariables,
     {
@@ -159,6 +172,7 @@ export const spaceStickersPackProduct: PrototypeProduct = {
   widthMm: 297,
   heightMm: 420,
   templateId: "tpl_space_stickers_pack_v1",
+  assets: getSpaceProductAssets("stickers-a3"),
   variables: birthdayTextVariables,
   outputFormats: ["png", "pdf"],
   prototype: {
@@ -195,6 +209,7 @@ export const spaceBannerProduct: PrototypeProduct = {
   widthMm: 2000,
   heightMm: 1000,
   templateId: "tpl_space_banner_v1",
+  assets: getSpaceProductAssets("banner-2x1m"),
   variables: [],
   outputFormats: ["png", "pdf"],
   prototype: {
@@ -231,6 +246,7 @@ export const spaceBackingProduct: PrototypeProduct = {
   widthMm: 1000,
   heightMm: 1000,
   templateId: "tpl_space_backing_v1",
+  assets: getSpaceProductAssets("backing-1x1m"),
   variables: [],
   outputFormats: ["png", "pdf"],
   prototype: {

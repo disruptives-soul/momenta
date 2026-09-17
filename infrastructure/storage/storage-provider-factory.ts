@@ -1,0 +1,30 @@
+import type { StorageProvider } from "@/services/ports/storage-provider";
+import { R2StorageProvider } from "@/infrastructure/r2/r2-storage-provider";
+import { LocalFileStorageProvider } from "./local-file-storage-provider";
+
+function hasR2Environment() {
+  return Boolean(
+    process.env.R2_ACCOUNT_ID &&
+      process.env.R2_ACCESS_KEY_ID &&
+      process.env.R2_SECRET_ACCESS_KEY &&
+      process.env.R2_BUCKET_NAME,
+  );
+}
+
+export function createStorageProvider(): StorageProvider {
+  if (hasR2Environment()) {
+    return new R2StorageProvider({
+      accountId: process.env.R2_ACCOUNT_ID!,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      bucketName: process.env.R2_BUCKET_NAME!,
+      endpoint: process.env.R2_ENDPOINT,
+    });
+  }
+
+  return new LocalFileStorageProvider();
+}
+
+export function getStorageProviderName() {
+  return hasR2Environment() ? "r2" : "local-file";
+}

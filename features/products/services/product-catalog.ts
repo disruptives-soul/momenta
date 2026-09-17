@@ -1,5 +1,6 @@
 import { mockProducts, type PrototypeProduct } from "../data/mock-products";
 import { renderingTemplates } from "@/features/rendering/templates/template-registry";
+import type { Product } from "@/domain";
 import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
 
 export function listProducts() {
@@ -17,7 +18,7 @@ export function getRelatedProducts(product: PrototypeProduct) {
   );
 }
 
-export function getRenderingTemplateForProduct(product: PrototypeProduct) {
+export function getRenderingTemplateForProduct(product: Product) {
   return (
     renderingTemplates.find(
       (template) => template.printProfile.id === product.printProfileId,

@@ -14,6 +14,7 @@ export type {
   Product,
   ProductAccess,
   ProductOutputFormat,
+  ProductStorageAssets,
 } from "./entities/product";
 export type {
   PersonalizationData,

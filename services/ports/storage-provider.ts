@@ -4,6 +4,15 @@ export type PutObjectInput = {
   contentType: string;
 };
 
+export type GetObjectInput = {
+  key: string;
+};
+
+export type GetObjectOutput = {
+  body: Uint8Array;
+  contentType?: string;
+};
+
 export type SignedUrlInput = {
   key: string;
   expiresInSeconds: number;
@@ -11,5 +20,6 @@ export type SignedUrlInput = {
 
 export interface StorageProvider {
   putObject(input: PutObjectInput): Promise<void>;
+  getObject?(input: GetObjectInput): Promise<GetObjectOutput>;
   createSignedUrl(input: SignedUrlInput): Promise<string>;
 }
