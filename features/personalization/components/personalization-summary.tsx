@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/status-state";
 import { trackValidationEvent } from "@/features/analytics/services/track-validation-event";
 import { saveCartSnapshot } from "@/features/cart/services/cart-storage";
+import { getProductPreviewAssetSrc } from "@/features/products/services/product-assets";
 import { getProductForRenderingTemplate } from "@/features/products/services/product-catalog";
 import { TemplatePreview } from "@/features/rendering/components/template-preview";
 import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
@@ -116,7 +117,7 @@ export function PersonalizationSummary({ projectId }: PersonalizationSummaryProp
         outputFormats: product.outputFormats,
         priceLabel: product.priceLabel,
         previewAlt: product.prototype.previewAlt,
-        previewSrc: product.prototype.previewSrc,
+        previewSrc: getProductPreviewAssetSrc(product),
         visualFormat: product.prototype.visualFormat,
       },
       template: {

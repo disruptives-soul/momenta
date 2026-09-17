@@ -21,6 +21,11 @@ export const banner2x1Template: InvitationTemplate = {
     path: "space-birthday/invitation/BANNER 2mx1m-150.jpg",
     contentType: "image/jpeg",
   },
+  storage: {
+    masterKey: "collections/space-birthday/banner-2x1m/v1/master.jpg",
+    previewKey: "collections/space-birthday/banner-2x1m/v1/preview.webp",
+    templateKey: "collections/space-birthday/banner-2x1m/v1/template.json",
+  },
   preview: {
     src: "/momenta/space-birthday/banner/preview.webp",
     widthPx: 900,

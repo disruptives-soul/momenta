@@ -21,6 +21,11 @@ export const backing1x1Template: InvitationTemplate = {
     path: "space-birthday/invitation/BACKING 1mx1m-150.jpg",
     contentType: "image/jpeg",
   },
+  storage: {
+    masterKey: "collections/space-birthday/backing-1x1m/v1/master.jpg",
+    previewKey: "collections/space-birthday/backing-1x1m/v1/preview.webp",
+    templateKey: "collections/space-birthday/backing-1x1m/v1/template.json",
+  },
   preview: {
     src: "/momenta/space-birthday/backing/preview.webp",
     widthPx: 760,

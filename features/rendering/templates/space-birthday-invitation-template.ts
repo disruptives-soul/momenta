@@ -22,6 +22,11 @@ export const spaceBirthdayInvitationTemplate: InvitationTemplate = {
     path: "space-birthday/invitation/INVITACION A3.jpg",
     contentType: "image/jpeg",
   },
+  storage: {
+    masterKey: "collections/space-birthday/invitation-a3/v1/master.jpg",
+    previewKey: "collections/space-birthday/invitation-a3/v1/preview.webp",
+    templateKey: "collections/space-birthday/invitation-a3/v1/template.json",
+  },
   preview: {
     src: "/momenta/space-birthday/invitation/preview.webp",
     widthPx: 700,

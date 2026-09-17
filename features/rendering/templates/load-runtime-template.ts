@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
+import { createStorageProvider } from "@/infrastructure/storage/storage-provider-factory";
 import { spaceBirthdayInvitationTemplate } from "./space-birthday-invitation-template";
 import type {
   InvitationTemplate,
@@ -94,6 +95,24 @@ export async function loadOriginalMasterJpgBytes(
     throw new Error(
       `PDF renderer expects an original JPG master for template ${template.id}.`,
     );
+  }
+
+  if (template.storage?.masterKey) {
+    try {
+      const storage = createStorageProvider();
+      const object = await storage.getObject?.({
+        key: template.storage.masterKey,
+      });
+
+      if (object?.body) {
+        return Buffer.from(object.body);
+      }
+    } catch (error) {
+      console.warn(
+        `Falling back to local master for ${template.id}; R2 read failed.`,
+        error,
+      );
+    }
   }
 
   return readFile(getMasterAssetPath(template));

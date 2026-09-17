@@ -13,6 +13,7 @@ import {
   getProductBySlug,
   getRelatedProducts,
 } from "@/features/products/services/product-catalog";
+import { getProductPreviewAssetSrc } from "@/features/products/services/product-assets";
 import { cn } from "@/lib/utils";
 
 type ProductPageProps = {
@@ -90,7 +91,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 fill
                 priority
                 sizes="(min-width: 1024px) 42vw, 92vw"
-                src={product.prototype.previewSrc}
+                src={getProductPreviewAssetSrc(product)}
               />
               <div className="absolute bottom-[-0.8rem] right-[-0.4rem] rounded-[1rem] bg-white px-5 py-4 shadow-md">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">

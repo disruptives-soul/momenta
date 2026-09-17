@@ -147,6 +147,11 @@ export type InvitationTemplate = {
     path: string;
     contentType: string;
   };
+  storage?: {
+    masterKey: string;
+    previewKey: string;
+    templateKey: string;
+  };
   preview: {
     src: string;
     widthPx: number;

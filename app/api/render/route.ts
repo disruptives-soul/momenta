@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import type { Template } from "@/domain";
 import {
@@ -10,7 +9,7 @@ import { LocalRenderProvider } from "@/features/rendering/services/local-render-
 import { renderPersonalizedInvitationPdf } from "@/features/rendering/services/pdf-template-renderer";
 import { createZip } from "@/features/rendering/services/zip-writer";
 import {
-  getMasterAssetPath,
+  loadOriginalMasterJpgBytes,
   TemplatePrintProfileError,
 } from "@/features/rendering/templates/load-runtime-template";
 import { getRenderingTemplate } from "@/features/rendering/templates/template-registry";
@@ -134,7 +133,7 @@ function normalizeData(data: RenderRequestBody["data"]): PersonalizationValues {
 }
 
 async function loadMasterDataUri(template: InvitationTemplate) {
-  const master = await readFile(getMasterAssetPath(template));
+  const master = await loadOriginalMasterJpgBytes(template);
 
   return `data:${template.master.contentType};base64,${master.toString("base64")}`;
 }

@@ -6,6 +6,7 @@ import type {
 } from "@/features/personalization/types/personalization-draft";
 import { cn } from "@/lib/utils";
 import type { TextElement } from "../templates/template-types";
+import { getTemplatePreviewAssetSrc } from "../templates/template-assets";
 import { getRenderingTemplate } from "../templates/template-registry";
 import {
   getArcTextCharacters,
@@ -97,7 +98,7 @@ export function TemplatePreview({
       >
         <image
           height={heightPx}
-          href={template.preview.src}
+          href={getTemplatePreviewAssetSrc(template)}
           preserveAspectRatio="xMidYMid slice"
           width={widthPx}
           x="0"

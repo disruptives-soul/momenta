@@ -39,6 +39,11 @@ export const stickersA3Template: InvitationTemplate = {
     path: "space-birthday/invitation/STICKERS A3.jpg",
     contentType: "image/jpeg",
   },
+  storage: {
+    masterKey: "collections/space-birthday/stickers-a3/v1/master.jpg",
+    previewKey: "collections/space-birthday/stickers-a3/v1/preview.webp",
+    templateKey: "collections/space-birthday/stickers-a3/v1/template.json",
+  },
   preview: {
     src: "/momenta/space-birthday/stickers/preview.webp",
     widthPx: 700,

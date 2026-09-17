@@ -2,6 +2,7 @@ import Image from "next/image";
 import { EventLink } from "@/features/analytics/components/event-link";
 import { cn } from "@/lib/utils";
 import type { PrototypeProduct } from "../data/mock-products";
+import { getProductPreviewAssetSrc } from "../services/product-assets";
 
 type ProductOptionCardProps = {
   product: PrototypeProduct;
@@ -41,7 +42,7 @@ export function ProductOptionCard({ product }: ProductOptionCardProps) {
           className="object-cover transition duration-500 group-hover:scale-[1.03]"
           fill
           sizes="(min-width: 1280px) 18vw, (min-width: 768px) 28vw, 88vw"
-          src={product.prototype.previewSrc}
+          src={getProductPreviewAssetSrc(product)}
         />
         <div className="absolute left-3 top-3 rounded-full bg-white/86 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
           {product.pieceTypeName}
