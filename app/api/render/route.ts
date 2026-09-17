@@ -5,6 +5,7 @@ import {
   spaceInvitationProduct,
   spaceStickersPackProduct,
 } from "@/features/products/data/mock-products";
+import { saveRenderedOrderToSupabase } from "@/infrastructure/supabase/supabase-order-repository";
 import { createStorageProvider } from "@/infrastructure/storage/storage-provider-factory";
 import { LocalRenderProvider } from "@/features/rendering/services/local-render-provider";
 import { renderPersonalizedInvitationPdf } from "@/features/rendering/services/pdf-template-renderer";
@@ -116,6 +117,10 @@ function sanitizeStorageSegment(value: string) {
 
 function getGeneratedOrderPrefix(orderId: string) {
   return `generated/orders/${sanitizeStorageSegment(orderId)}`;
+}
+
+function createStableId(parts: string[]) {
+  return createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 16);
 }
 
 async function storeGeneratedObject(input: {
@@ -245,6 +250,44 @@ function bytesToResponseBody(bytes: Uint8Array) {
   return body;
 }
 
+async function saveRenderedOrderMetadata(input: {
+  orderId?: string;
+  items: Array<{
+    itemId: string;
+    productId: string;
+    template: InvitationTemplate;
+    scene: TextElement[];
+  }>;
+  generatedFiles: Array<{
+    id: string;
+    orderItemId?: string | null;
+    kind: "pdf" | "zip";
+    storageKey: string;
+    contentType: string;
+  }>;
+}) {
+  if (!input.orderId) {
+    return null;
+  }
+
+  try {
+    return await saveRenderedOrderToSupabase({
+      id: sanitizeStorageSegment(input.orderId),
+      items: input.items.map((item) => ({
+        id: item.itemId,
+        productId: item.productId,
+        template: item.template,
+        scene: item.scene,
+      })),
+      generatedFiles: input.generatedFiles,
+    });
+  } catch (error) {
+    console.error("Supabase order metadata save failed.", error);
+
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   let body: RenderRequestBody;
 
@@ -305,36 +348,89 @@ export async function POST(request: Request) {
     let zip: Uint8Array;
     let zipStorageKey: string | null = null;
     let pdfStorageKeys: string[] = [];
+    const orderItemMetadata: Array<{
+      itemId: string;
+      productId: string;
+      template: InvitationTemplate;
+      scene: TextElement[];
+    }> = [];
+    const generatedFilesMetadata: Array<{
+      id: string;
+      orderItemId?: string | null;
+      kind: "pdf" | "zip";
+      storageKey: string;
+      contentType: string;
+    }> = [];
+    let supabaseSaved = false;
     let zipFileName = "";
 
     try {
       const usedFileNames = new Set<string>();
       const pdfFiles = await Promise.all(
-        validTemplates.map(async (item) => ({
-          name: getUniqueZipFileName(
+        validTemplates.map(async (item, index) => {
+          const fileName = getUniqueZipFileName(
             getProductPdfFileName(item.template),
             usedFileNames,
-          ),
-          bytes: await renderPersonalizedInvitationPdf(
-            item.values,
-            item.template,
-            item.layout,
-            item.scene,
-          ),
-        })),
+          );
+          const orderItemId = body.orderId
+            ? `item_${createStableId([
+                sanitizeStorageSegment(body.orderId),
+                item.template.id,
+                String(index),
+              ])}`
+            : null;
+          const productId = `${item.template.collectionSlug}:${item.template.productCode}`;
+
+          if (orderItemId) {
+            orderItemMetadata.push({
+              itemId: orderItemId,
+              productId,
+              template: item.template,
+              scene: item.scene ?? [],
+            });
+          }
+
+          return {
+            name: fileName,
+            orderItemId,
+            bytes: await renderPersonalizedInvitationPdf(
+              item.values,
+              item.template,
+              item.layout,
+              item.scene,
+            ),
+          };
+        }),
       );
 
       if (body.orderId) {
+        const orderId = body.orderId;
+
         pdfStorageKeys = (
           await Promise.all(
-            pdfFiles.map((file) =>
-              storeGeneratedObject({
-                orderId: body.orderId,
+            pdfFiles.map(async (file) => {
+              const storageKey = await storeGeneratedObject({
+                orderId,
                 key: `pdfs/${file.name}`,
                 body: file.bytes,
                 contentType: "application/pdf",
-              }),
-            ),
+              });
+
+              if (storageKey) {
+                generatedFilesMetadata.push({
+                  id: `file_${createStableId([
+                    sanitizeStorageSegment(orderId),
+                    storageKey,
+                  ])}`,
+                  orderItemId: file.orderItemId,
+                  kind: "pdf",
+                  storageKey,
+                  contentType: "application/pdf",
+                });
+              }
+
+              return storageKey;
+            }),
           )
         ).filter((key) => key !== null);
       }
@@ -349,6 +445,24 @@ export async function POST(request: Request) {
         body: zip,
         contentType: "application/zip",
       });
+      if (zipStorageKey && body.orderId) {
+        generatedFilesMetadata.push({
+          id: `file_${createStableId([
+            sanitizeStorageSegment(body.orderId),
+            zipStorageKey,
+          ])}`,
+          orderItemId: null,
+          kind: "zip",
+          storageKey: zipStorageKey,
+          contentType: "application/zip",
+        });
+      }
+      const metadataResult = await saveRenderedOrderMetadata({
+        orderId: body.orderId,
+        items: orderItemMetadata,
+        generatedFiles: generatedFilesMetadata,
+      });
+      supabaseSaved = metadataResult?.skipped === false;
     } catch (error) {
       return renderErrorResponse(error);
     }
@@ -364,6 +478,7 @@ export async function POST(request: Request) {
         ...(pdfStorageKeys.length
           ? { "X-Momenta-Generated-Pdf-Keys": pdfStorageKeys.join(",") }
           : {}),
+        ...(supabaseSaved ? { "X-Momenta-Supabase-Saved": "true" } : {}),
       },
     );
   }
@@ -389,6 +504,7 @@ export async function POST(request: Request) {
   if (format === "pdf") {
     let pdf: Uint8Array;
     let storageKey: string | null = null;
+    let supabaseSaved = false;
 
     try {
       pdf = await renderPersonalizedInvitationPdf(
@@ -403,6 +519,38 @@ export async function POST(request: Request) {
         body: pdf,
         contentType: "application/pdf",
       });
+      if (storageKey && body.orderId) {
+        const orderItemId = `item_${createStableId([
+          sanitizeStorageSegment(body.orderId),
+          renderingTemplate.id,
+          "0",
+        ])}`;
+        const result = await saveRenderedOrderMetadata({
+          orderId: body.orderId,
+          items: [
+            {
+              itemId: orderItemId,
+              productId: `${renderingTemplate.collectionSlug}:${renderingTemplate.productCode}`,
+              template: renderingTemplate,
+              scene: body.scene ?? [],
+            },
+          ],
+          generatedFiles: [
+            {
+              id: `file_${createStableId([
+                sanitizeStorageSegment(body.orderId),
+                storageKey,
+              ])}`,
+              orderItemId,
+              kind: "pdf",
+              storageKey,
+              contentType: "application/pdf",
+            },
+          ],
+        });
+
+        supabaseSaved = result?.skipped === false;
+      }
     } catch (error) {
       return renderErrorResponse(error);
     }
@@ -412,7 +560,10 @@ export async function POST(request: Request) {
       renderingTemplate,
       format,
       "application/pdf",
-      storageKey ? { "X-Momenta-Generated-Key": storageKey } : undefined,
+      {
+        ...(storageKey ? { "X-Momenta-Generated-Key": storageKey } : {}),
+        ...(supabaseSaved ? { "X-Momenta-Supabase-Saved": "true" } : {}),
+      },
     );
   }
 
