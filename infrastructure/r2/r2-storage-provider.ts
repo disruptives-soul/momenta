@@ -224,8 +224,7 @@ export class R2StorageProvider implements StorageProvider {
     );
 
     return [
-      "AWS4-HMAC-SHA256",
-      `Credential=${this.config.accessKeyId}/${credentialScope}`,
+      `AWS4-HMAC-SHA256 Credential=${this.config.accessKeyId}/${credentialScope}`,
       `SignedHeaders=${input.signedHeaders}`,
       `Signature=${signature}`,
     ].join(", ");
