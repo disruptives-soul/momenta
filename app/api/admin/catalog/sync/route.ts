@@ -12,6 +12,13 @@ import {
 import { getBundledGoogleFontFamily } from "@/features/rendering/templates/google-font-assets";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
+
+type CatalogSyncEvent =
+  | "product.deleted"
+  | "product.published"
+  | "product.trashed"
+  | "product.unpublished";
 
 type CatalogCollectionPayload = {
   slug: string;
@@ -63,12 +70,29 @@ type CatalogAssetsPayload = {
 };
 
 type CatalogSyncPayload = {
-  event: string;
+  event: CatalogSyncEvent;
   collection: CatalogCollectionPayload;
   product: CatalogProductPayload;
   printProfile: CatalogPrintProfilePayload;
   template: CatalogTemplatePayload;
   assets: CatalogAssetsPayload;
+};
+
+type CatalogDeletePayload = {
+  event: Extract<
+    CatalogSyncEvent,
+    "product.deleted" | "product.trashed" | "product.unpublished"
+  >;
+  collection: {
+    slug: string;
+  };
+  product: {
+    slug: string;
+    templateId?: string;
+  };
+  template?: {
+    id?: string;
+  };
 };
 
 type CatalogStatus = "draft" | "needs_calibration" | "ready" | "published";
@@ -104,11 +128,11 @@ function getErrorMessage(error: unknown) {
 function isAuthorized(request: Request) {
   const secret = process.env.MOMENTA_ADMIN_SECRET;
 
-  if (!secret && process.env.NODE_ENV !== "production") {
+  if (!isUsableEnvValue(secret) && process.env.NODE_ENV !== "production") {
     return true;
   }
 
-  if (!secret) {
+  if (!isUsableEnvValue(secret)) {
     return false;
   }
 
@@ -170,6 +194,73 @@ function readStringArray(source: Record<string, unknown>, key: string) {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function readPayloadEvent(body: unknown) {
+  if (!isRecord(body)) {
+    throw new Error("Payload must be a JSON object.");
+  }
+
+  const event = body.event;
+
+  if (
+    event !== "product.deleted" &&
+    event !== "product.published" &&
+    event !== "product.trashed" &&
+    event !== "product.unpublished"
+  ) {
+    throw new Error(
+      "payload.event must be product.published, product.deleted, product.trashed, or product.unpublished.",
+    );
+  }
+
+  return event;
+}
+
+function parseDeletePayload(
+  body: unknown,
+  event: Extract<
+    CatalogSyncEvent,
+    "product.deleted" | "product.trashed" | "product.unpublished"
+  >,
+): CatalogDeletePayload {
+  const errors: string[] = [];
+
+  if (!isRecord(body)) {
+    throw new Error("Payload must be a JSON object.");
+  }
+
+  const collectionSource = isRecord(body.collection) ? body.collection : null;
+  const productSource = isRecord(body.product) ? body.product : null;
+  const templateSource = isRecord(body.template) ? body.template : null;
+
+  if (!collectionSource) errors.push("payload.collection is required.");
+  if (!productSource) errors.push("payload.product is required.");
+
+  const collection = collectionSource ?? {};
+  const product = productSource ?? {};
+  const template = templateSource ?? {};
+  const payload: CatalogDeletePayload = {
+    event,
+    collection: {
+      slug: readRequiredString(collection, "slug", "collection", errors),
+    },
+    product: {
+      slug: readRequiredString(product, "slug", "product", errors),
+      templateId: readOptionalString(product, "templateId"),
+    },
+    template: templateSource
+      ? {
+          id: readOptionalString(template, "id"),
+        }
+      : undefined,
+  };
+
+  if (errors.length > 0) {
+    throw new Error(errors.join(" "));
+  }
+
+  return payload;
+}
+
 function parsePayload(body: unknown): CatalogSyncPayload {
   const errors: string[] = [];
 
@@ -208,7 +299,7 @@ function parsePayload(body: unknown): CatalogSyncPayload {
   const assets = assetsSource ?? {};
 
   const payload: CatalogSyncPayload = {
-    event,
+    event: "product.published",
     collection: {
       slug: readRequiredString(collection, "slug", "collection", errors),
       name: readRequiredString(collection, "name", "collection", errors),
@@ -318,6 +409,18 @@ function getStorageKeys(payload: CatalogSyncPayload): CatalogStorageKeys {
     previewKey: `${base}/preview.webp`,
     templateKey: `${base}/template.json`,
     productKey: `${base}/_product.json`,
+  };
+}
+
+function getDeleteStorageKeys(payload: CatalogDeletePayload): CatalogStorageKeys {
+  const base = `collections/${payload.collection.slug}/${payload.product.slug}/v1`;
+
+  return {
+    masterKey: `${base}/master.jpg`,
+    previewKey: `${base}/preview.webp`,
+    templateKey: `${base}/template.json`,
+    productKey: `${base}/_product.json`,
+    illustratorSourceKey: `${base}/illustrator-source.json`,
   };
 }
 
@@ -518,6 +621,14 @@ function revalidateCatalogPaths(payload: CatalogSyncPayload) {
   revalidatePath(`/products/${payload.product.slug}/personalize`);
 }
 
+function revalidateDeletedCatalogPaths(payload: CatalogDeletePayload) {
+  revalidatePath("/");
+  revalidatePath("/catalog");
+  revalidatePath(`/collections/${payload.collection.slug}`);
+  revalidatePath(`/products/${payload.product.slug}`);
+  revalidatePath(`/products/${payload.product.slug}/personalize`);
+}
+
 async function downloadAsset(url: string, fallbackContentType: string) {
   const response = await fetch(url, { cache: "no-store" });
 
@@ -605,6 +716,74 @@ async function upsertRows(table: string, rows: unknown[]) {
   return { skipped: false as const };
 }
 
+async function deleteSupabaseRows(
+  table: string,
+  query: Record<string, string>,
+) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return { skipped: true as const, reason: "missing_config" as const };
+  }
+
+  const params = new URLSearchParams(
+    Object.entries(query).map(([key, value]) => [key, `eq.${value}`]),
+  );
+  const response = await fetch(`${config.url}/rest/v1/${table}?${params}`, {
+    method: "DELETE",
+    headers: {
+      apikey: config.serviceRoleKey,
+      Authorization: `Bearer ${config.serviceRoleKey}`,
+      Prefer: "return=representation",
+    },
+  });
+
+  if (response.ok) {
+    const rows = (await response.json().catch(() => [])) as unknown[];
+
+    return {
+      skipped: false as const,
+      deleted: Array.isArray(rows) ? rows.length : 0,
+    };
+  }
+
+  const body = await response.text();
+
+  if (isMissingSupabaseTable(response.status, body)) {
+    return {
+      skipped: true as const,
+      reason: "missing_table" as const,
+      table,
+      detail: body,
+    };
+  }
+
+  throw new Error(
+    `Supabase delete failed for ${table}: ${response.status} ${body}`,
+  );
+}
+
+async function deleteCatalogMetadataFromSupabase(payload: CatalogDeletePayload) {
+  if (!getSupabaseConfig()) {
+    return { skipped: true as const };
+  }
+
+  const templateId = payload.template?.id ?? payload.product.templateId;
+  const templates = templateId
+    ? await deleteSupabaseRows("momenta_catalog_templates", { id: templateId })
+    : await deleteSupabaseRows("momenta_catalog_templates", {
+        collection_slug: payload.collection.slug,
+        product_slug: payload.product.slug,
+      });
+
+  const products = await deleteSupabaseRows("momenta_catalog_products", {
+    collection_slug: payload.collection.slug,
+    slug: payload.product.slug,
+  });
+
+  return { skipped: false as const, products, templates };
+}
+
 async function saveCatalogMetadataToSupabase(
   payload: CatalogSyncPayload,
   keys: CatalogStorageKeys,
@@ -671,15 +850,123 @@ async function saveCatalogMetadataToSupabase(
   return { skipped: false as const };
 }
 
+function getStorageKeysForDeletion(keys: CatalogStorageKeys) {
+  return [
+    keys.masterKey,
+    keys.previewKey,
+    keys.illustratorSourceKey,
+    keys.templateKey,
+    keys.productKey,
+  ].filter((key): key is string => Boolean(key));
+}
+
+async function deleteCatalogStorageObjects(keys: CatalogStorageKeys) {
+  const storage = createStorageProvider();
+  const deletedKeys: string[] = [];
+  const failedKeys: Array<{ key: string; error: string }> = [];
+
+  if (!storage.deleteObject) {
+    return {
+      skipped: true as const,
+      reason: "unsupported_storage_delete" as const,
+      deletedKeys,
+      failedKeys,
+    };
+  }
+
+  for (const key of getStorageKeysForDeletion(keys)) {
+    try {
+      await storage.deleteObject({ key });
+      deletedKeys.push(key);
+    } catch (error) {
+      failedKeys.push({ key, error: getErrorMessage(error) });
+    }
+  }
+
+  return {
+    skipped: false as const,
+    deletedKeys,
+    failedKeys,
+  };
+}
+
+async function handleCatalogDelete(payload: CatalogDeletePayload) {
+  const storageName = getStorageProviderName();
+  const keys = getDeleteStorageKeys(payload);
+  const [storage, supabase] = await Promise.all([
+    deleteCatalogStorageObjects(keys),
+    deleteCatalogMetadataFromSupabase(payload),
+  ]);
+
+  revalidateDeletedCatalogPaths(payload);
+
+  const callback = await notifyWordPressSyncCallback({
+    ok: true,
+    templateId: payload.template?.id ?? payload.product.templateId ?? "",
+    catalogStatus: "draft",
+    textElementCount: 0,
+    storage: storageName,
+    keys,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    event: payload.event,
+    collectionSlug: payload.collection.slug,
+    productSlug: payload.product.slug,
+    templateId: payload.template?.id ?? payload.product.templateId,
+    deleted: true,
+    storage: storageName,
+    keys,
+    storageDelete: storage,
+    supabase,
+    callback,
+  });
+}
+
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  let body: unknown;
+  let event: CatalogSyncEvent;
+
+  try {
+    body = await request.json();
+    event = readPayloadEvent(body);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Invalid catalog sync payload.",
+        detail: getErrorMessage(error),
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    event === "product.deleted" ||
+    event === "product.trashed" ||
+    event === "product.unpublished"
+  ) {
+    try {
+      return await handleCatalogDelete(parseDeletePayload(body, event));
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: "Catalog delete sync failed.",
+          detail: getErrorMessage(error),
+        },
+        { status: 500 },
+      );
+    }
+  }
+
   let payload: CatalogSyncPayload;
 
   try {
-    payload = parsePayload(await request.json());
+    payload = parsePayload(body);
   } catch (error) {
     return NextResponse.json(
       {

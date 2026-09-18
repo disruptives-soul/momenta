@@ -175,6 +175,42 @@ export class R2StorageProvider implements StorageProvider {
     };
   }
 
+  async deleteObject(input: { key: string }): Promise<void> {
+    const payloadHash = hashSha256("");
+    const amzDate = toAmzDate();
+    const canonicalUri = this.getCanonicalUri(input.key);
+    const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+    const canonicalHeaders = [
+      `host:${this.host}`,
+      `x-amz-content-sha256:${payloadHash}`,
+      `x-amz-date:${amzDate}`,
+      "",
+    ].join("\n");
+    const authorization = this.createAuthorizationHeader({
+      amzDate,
+      canonicalHeaders,
+      canonicalQuery: "",
+      canonicalUri,
+      method: "DELETE",
+      payloadHash,
+      signedHeaders,
+    });
+    const response = await fetch(`${this.endpoint}${canonicalUri}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: authorization,
+        "X-Amz-Content-Sha256": payloadHash,
+        "X-Amz-Date": amzDate,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `R2 deleteObject failed for ${input.key}: ${response.status} ${await response.text()}`,
+      );
+    }
+  }
+
   async createSignedUrl(input: SignedUrlInput): Promise<string> {
     const amzDate = toAmzDate();
     const dateStamp = toDateStamp(amzDate);
@@ -216,7 +252,7 @@ export class R2StorageProvider implements StorageProvider {
   }
 
   private createAuthorizationHeader(input: {
-    method: "GET" | "PUT";
+    method: "DELETE" | "GET" | "PUT";
     canonicalUri: string;
     canonicalQuery: string;
     canonicalHeaders: string;

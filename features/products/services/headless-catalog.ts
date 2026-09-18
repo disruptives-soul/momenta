@@ -105,11 +105,11 @@ async function readSupabaseTable<T>(table: string, select = "*") {
     const response = await fetch(
       `${config.url}/rest/v1/${table}?select=${encodeURIComponent(select)}`,
       {
+        cache: "no-store",
         headers: {
           apikey: config.serviceRoleKey,
           Authorization: `Bearer ${config.serviceRoleKey}`,
         },
-        next: { revalidate: 30 },
       },
     );
 

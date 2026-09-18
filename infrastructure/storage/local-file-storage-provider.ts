@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type {
   GetObjectOutput,
@@ -34,6 +34,25 @@ export class LocalFileStorageProvider implements StorageProvider {
       body,
       contentType: JSON.parse(metadata).contentType,
     };
+  }
+
+  async deleteObject(input: { key: string }): Promise<void> {
+    const targetPath = join(this.rootPath, input.key);
+
+    await Promise.all([
+      unlink(targetPath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") {
+          throw error;
+        }
+      }),
+      unlink(`${targetPath}.metadata.json`).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") {
+            throw error;
+          }
+        },
+      ),
+    ]);
   }
 
   async createSignedUrl(input: SignedUrlInput): Promise<string> {
