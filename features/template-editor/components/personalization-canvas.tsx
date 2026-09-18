@@ -18,6 +18,7 @@ import {
   getTemplateMasterAssetSrc,
   getTemplatePreviewAssetSrc,
 } from "@/features/rendering/templates/template-assets";
+import { getPublicFontAssetUrl } from "@/features/rendering/templates/google-font-assets";
 import { useTemplateScale } from "../hooks/use-template-scale";
 import { getScaledFontSize } from "../services/template-layout";
 import { EditableText } from "./editable-text";
@@ -56,6 +57,12 @@ type CanvasImageState = {
   image: HTMLImageElement | null;
   isLoading: boolean;
   hasError: boolean;
+};
+
+type CanvasFontAsset = {
+  family: string;
+  source: string;
+  weight: string;
 };
 
 function useCanvasImage(src: string, fallbackSrc?: string) {
@@ -127,6 +134,112 @@ function useCanvasImage(src: string, fallbackSrc?: string) {
   };
 }
 
+function getPrimaryFontFamily(fontFamily: string) {
+  return (
+    fontFamily
+      .split(",")[0]
+      ?.replaceAll("\"", "")
+      .replaceAll("'", "")
+      .trim() || fontFamily
+  );
+}
+
+function getCanvasFontAssets(scene: TextElement[]) {
+  const assets = new Map<string, CanvasFontAsset>();
+
+  scene.forEach((element) => {
+    if (!element.fontAsset) {
+      return;
+    }
+
+    const family = getPrimaryFontFamily(element.fontFamily);
+    const regular = element.fontAsset.regular;
+    const bold = element.fontAsset.bold;
+
+    assets.set(`${family}:400:${regular}`, {
+      family,
+      source: getPublicFontAssetUrl(regular),
+      weight: "400",
+    });
+
+    if (bold) {
+      assets.set(`${family}:700:${bold}`, {
+        family,
+        source: getPublicFontAssetUrl(bold),
+        weight: "700",
+      });
+    }
+  });
+
+  return Array.from(assets.values());
+}
+
+function hasLoadedFontFace(asset: CanvasFontAsset) {
+  return Array.from(document.fonts).some(
+    (font) =>
+      font.family.replaceAll("\"", "") === asset.family &&
+      font.weight === asset.weight &&
+      font.status === "loaded",
+  );
+}
+
+function useCanvasFonts(scene: TextElement[]) {
+  const [loadVersion, setLoadVersion] = useState(0);
+  const fontAssets = useMemo(() => getCanvasFontAssets(scene), [scene]);
+  const fontSignature = useMemo(
+    () =>
+      fontAssets
+        .map((asset) => `${asset.family}:${asset.weight}:${asset.source}`)
+        .join("|"),
+    [fontAssets],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("FontFace" in window)) {
+      return;
+    }
+
+    let isDisposed = false;
+
+    async function loadFonts() {
+      await Promise.all(
+        fontAssets.map(async (asset) => {
+          if (hasLoadedFontFace(asset)) {
+            return;
+          }
+
+          const fontFace = new FontFace(
+            asset.family,
+            `url("${asset.source}")`,
+            {
+              style: "normal",
+              weight: asset.weight,
+            },
+          );
+
+          const loadedFace = await fontFace.load();
+          document.fonts.add(loadedFace);
+        }),
+      );
+      await document.fonts.ready;
+
+      if (!isDisposed) {
+        setLoadVersion((current) => current + 1);
+      }
+    }
+
+    void loadFonts().catch((error) => {
+      console.warn("Momenta font load failed; using fallback font.", error);
+    });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [fontAssets, fontSignature]);
+
+  return loadVersion;
+}
+
 export function PersonalizationCanvas({
   template,
   scene,
@@ -142,6 +255,7 @@ export function PersonalizationCanvas({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const scale = useTemplateScale(containerRef, template, zoom);
+  const fontLoadVersion = useCanvasFonts(scene);
   const {
     hasError: hasImageError,
     image,
@@ -167,6 +281,10 @@ export function PersonalizationCanvas({
     scene.find((element) => element.id === editingElementId) ?? null;
   const masterSafeArea = useMemo(() => getTemplateSafeArea(template), [template]);
 
+  useEffect(() => {
+    stageRef.current?.batchDraw();
+  }, [fontLoadVersion]);
+
   const editingStyle = useMemo(() => {
     if (!editingElement) {
       return null;
@@ -181,6 +299,7 @@ export function PersonalizationCanvas({
       color: editingElement.fill,
       fontSize,
       fontWeight: editingElement.fontWeight ?? 500,
+      letterSpacing: (editingElement.letterSpacing ?? 0) * scale.scaleX,
       left,
       lineHeight: editingElement.lineHeight ?? 1.15,
       opacity: editingElement.opacity ?? 1,
@@ -616,7 +735,7 @@ export function PersonalizationCanvas({
               fontFamily: editingElement.fontFamily,
               fontSize: editingStyle.fontSize,
               fontWeight: editingStyle.fontWeight,
-              letterSpacing: editingElement.letterSpacing ?? 0,
+              letterSpacing: editingStyle.letterSpacing,
               left: editingStyle.left,
               lineHeight: editingStyle.lineHeight,
               opacity: editingStyle.opacity,

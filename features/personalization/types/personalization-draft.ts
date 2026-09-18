@@ -3,6 +3,7 @@ import { createTextSceneFromTemplate } from "@/features/rendering/templates/text
 import type {
   InvitationTemplate,
   TemplateFontAsset,
+  TemplateTextAlign,
   TemplatePdfFont,
   TextElement,
 } from "@/features/rendering/templates/template-types";
@@ -26,7 +27,7 @@ export type PersonalizationLayoutOverride = {
   fontSize?: number;
   fill?: string;
   opacity?: number;
-  align?: "left" | "center" | "right";
+  align?: TemplateTextAlign;
   rotation?: number;
   letterSpacing?: number;
   lineHeight?: number;

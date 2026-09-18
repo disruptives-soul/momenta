@@ -8,6 +8,10 @@ import type {
 } from "./template-types";
 import { defaultTextColors, defaultTextFonts } from "./text-scene";
 import { getRenderingTemplate } from "./template-registry";
+import {
+  getBundledGoogleFontAsset,
+  getBundledGoogleFontFamily,
+} from "./google-font-assets";
 
 type HeadlessTemplateObject = {
   id: string;
@@ -26,6 +30,7 @@ type HeadlessTemplateObject = {
   assets: {
     masterKey: string;
     previewKey: string;
+    illustratorSourceKey?: string;
   };
 };
 
@@ -44,6 +49,35 @@ function isUsableEnvValue(value?: string) {
 
 function parseJsonFile<T>(raw: string) {
   return JSON.parse(raw.replace(/^\uFEFF/, "")) as T;
+}
+
+function getAllowedFonts(fonts?: string[]) {
+  const defaultValues = new Set<string>(defaultTextFonts.map((font) => font.value));
+  const importedFonts = (fonts ?? [])
+    .map((font) => font.trim())
+    .filter(Boolean)
+    .map((font) => {
+      const value = font.includes(",")
+        ? font
+        : `${font}, Arial, Helvetica, sans-serif`;
+
+      return {
+        label: font.split(",")[0]?.trim() ?? font,
+        value,
+        pdfFont: "helvetica" as const,
+        fontAsset: getBundledGoogleFontAsset(font),
+      };
+    })
+    .filter((font) => {
+      if (defaultValues.has(font.value)) {
+        return false;
+      }
+
+      defaultValues.add(font.value);
+      return true;
+    });
+
+  return [...defaultTextFonts, ...importedFonts];
 }
 
 function getSupabaseConfig() {
@@ -165,12 +199,21 @@ function normalizeField(
   return {
     label: element.label ?? `Texto ${index + 1}`,
     defaultValue,
+    source: element.source,
+    sourceTextKind: element.sourceTextKind,
+    needsReview: element.needsReview,
+    sourceMeta: element.sourceMeta,
     editable: true,
     x,
     y,
     width: element.width ?? Math.min(widthPx * 0.72, 1800),
     fontFamily: element.fontFamily ?? fallbackFont.value,
     pdfFont: element.pdfFont ?? fallbackFont.pdfFont,
+    fontAsset:
+      element.fontAsset ??
+      getBundledGoogleFontAsset(
+        getBundledGoogleFontFamily(element.fontFamily) ?? element.fontFamily,
+      ),
     fontWeight: element.fontWeight,
     fontSize,
     minFontSize: Math.min(element.minFontSize ?? 32, fontSize),
@@ -230,7 +273,7 @@ function toInvitationTemplate(source: HeadlessTemplateObject): InvitationTemplat
         source.allowedColors && source.allowedColors.length > 0
           ? source.allowedColors
           : defaultTextColors,
-      allowedFonts: [...defaultTextFonts],
+      allowedFonts: getAllowedFonts(source.allowedFonts),
     },
     fields,
   };

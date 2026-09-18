@@ -73,6 +73,7 @@ export function EditableText({
   const visualBox = getTextVisualBox(element);
   const scaledWidth = visualBox.width * scale.scaleX;
   const scaledHeight = visualBox.height * scale.scaleY;
+  const scaledLetterSpacing = (element.letterSpacing ?? 0) * scale.scaleX;
   const x = visualBox.x * scale.scaleX;
   const y = visualBox.y * scale.scaleY;
   const lineHeight = element.lineHeight ?? 1.15;
@@ -255,7 +256,7 @@ export function EditableText({
         fontFamily={element.fontFamily}
         fontSize={scaledFontSize}
         fontStyle={(element.fontWeight ?? 500) >= 700 ? "bold" : "normal"}
-        letterSpacing={element.letterSpacing ?? 0}
+        letterSpacing={scaledLetterSpacing}
         lineHeight={lineHeight}
         listening={!disabled}
         onClick={(event) => !disabled && onSelect(element.id, event.evt.shiftKey)}

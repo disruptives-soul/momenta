@@ -4,6 +4,12 @@ import {
   createStorageProvider,
   getStorageProviderName,
 } from "@/infrastructure/storage/storage-provider-factory";
+import {
+  getIllustratorFontFamilies,
+  importIllustratorTemplate,
+  isIllustratorTemplateExport,
+} from "@/features/rendering/templates/illustrator-template-importer";
+import { getBundledGoogleFontFamily } from "@/features/rendering/templates/google-font-assets";
 
 export const runtime = "nodejs";
 
@@ -52,6 +58,8 @@ type CatalogTemplatePayload = {
 type CatalogAssetsPayload = {
   masterUrl: string;
   previewUrl: string;
+  illustratorTemplateUrl?: string;
+  templateSourceUrl?: string;
 };
 
 type CatalogSyncPayload = {
@@ -70,6 +78,7 @@ type CatalogStorageKeys = {
   previewKey: string;
   templateKey: string;
   productKey: string;
+  illustratorSourceKey?: string;
 };
 
 type WordPressSyncCallbackPayload =
@@ -85,6 +94,7 @@ type WordPressSyncCallbackPayload =
       ok: false;
       templateId: string;
       error: string;
+      missingFonts?: string[];
     };
 
 function getErrorMessage(error: unknown) {
@@ -272,6 +282,8 @@ function parsePayload(body: unknown): CatalogSyncPayload {
     assets: {
       masterUrl: readRequiredString(assets, "masterUrl", "assets", errors),
       previewUrl: readRequiredString(assets, "previewUrl", "assets", errors),
+      illustratorTemplateUrl: readOptionalString(assets, "illustratorTemplateUrl"),
+      templateSourceUrl: readOptionalString(assets, "templateSourceUrl"),
     },
   };
 
@@ -309,6 +321,10 @@ function getStorageKeys(payload: CatalogSyncPayload): CatalogStorageKeys {
   };
 }
 
+function getIllustratorSourceKey(payload: CatalogSyncPayload) {
+  return `collections/${payload.collection.slug}/${payload.product.slug}/v1/illustrator-source.json`;
+}
+
 function getCatalogStatus(payload: CatalogSyncPayload): CatalogStatus {
   const status = payload.template.status ?? payload.product.status;
   const hasTextElements = payload.template.textElements.length > 0;
@@ -322,6 +338,59 @@ function getCatalogStatus(payload: CatalogSyncPayload): CatalogStatus {
   }
 
   return hasTextElements ? "published" : "needs_calibration";
+}
+
+function mmToPixels(mm: number, ppi: number) {
+  return Math.round((mm / 25.4) * ppi);
+}
+
+function getTemplateSourceUrl(payload: CatalogSyncPayload) {
+  return payload.assets.illustratorTemplateUrl ?? payload.assets.templateSourceUrl;
+}
+
+function mergeUniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function getMissingBundledFontFamilies(fontFamilies: string[]) {
+  return fontFamilies.filter((fontFamily) => !getBundledGoogleFontFamily(fontFamily));
+}
+
+function getFontCacheCommand(fontFamilies: string[]) {
+  return `pnpm fonts:cache ${fontFamilies
+    .map((fontFamily) => JSON.stringify(fontFamily))
+    .join(" ")}`;
+}
+
+function getImportedFontFamilies(textElements: unknown[]) {
+  return textElements
+    .filter(isRecord)
+    .map((element) => element.fontFamily)
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.split(",")[0]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+function withImportedIllustratorElements(
+  payload: CatalogSyncPayload,
+  textElements: unknown[],
+): CatalogSyncPayload {
+  return {
+    ...payload,
+    product: {
+      ...payload.product,
+      status: "needs_calibration",
+    },
+    template: {
+      ...payload.template,
+      status: "needs_calibration",
+      allowedFonts: mergeUniqueStrings([
+        ...(payload.template.allowedFonts ?? []),
+        ...getImportedFontFamilies(textElements),
+      ]),
+      textElements,
+    },
+  };
 }
 
 function getTemplateObject(payload: CatalogSyncPayload, keys: CatalogStorageKeys) {
@@ -344,6 +413,7 @@ function getTemplateObject(payload: CatalogSyncPayload, keys: CatalogStorageKeys
     assets: {
       masterKey: keys.masterKey,
       previewKey: keys.previewKey,
+      illustratorSourceKey: keys.illustratorSourceKey,
     },
   };
 }
@@ -368,6 +438,7 @@ function getProductObject(
         masterKey: keys.masterKey,
         previewKey: keys.previewKey,
         templateKey: keys.templateKey,
+        illustratorSourceKey: keys.illustratorSourceKey,
       },
     },
     printProfile: payload.printProfile,
@@ -457,6 +528,16 @@ async function downloadAsset(url: string, fallbackContentType: string) {
   return {
     body: new Uint8Array(await response.arrayBuffer()),
     contentType: response.headers.get("content-type") ?? fallbackContentType,
+  };
+}
+
+async function downloadJsonAsset(url: string) {
+  const asset = await downloadAsset(url, "application/json");
+  const text = new TextDecoder().decode(asset.body).replace(/^\uFEFF/, "");
+
+  return {
+    ...asset,
+    json: JSON.parse(text) as unknown,
   };
 }
 
@@ -615,6 +696,83 @@ export async function POST(request: Request) {
   const createdKeys: string[] = [];
 
   try {
+    const templateSourceUrl = getTemplateSourceUrl(payload);
+    let illustratorSource:
+      | Awaited<ReturnType<typeof downloadJsonAsset>>
+      | null = null;
+
+    if (payload.template.textElements.length === 0 && templateSourceUrl) {
+      illustratorSource = await downloadJsonAsset(templateSourceUrl);
+
+      if (!isIllustratorTemplateExport(illustratorSource.json)) {
+        const error = "Invalid Illustrator template source.";
+        const callback = await notifyWordPressSyncCallback({
+          ok: false,
+          templateId: payload.template.id,
+          error,
+        });
+
+        return NextResponse.json(
+          {
+            error,
+            catalogStatus: "draft",
+            textElementCount: 0,
+            callback,
+          },
+          { status: 422 },
+        );
+      }
+
+      const missingFonts = getMissingBundledFontFamilies(
+        getIllustratorFontFamilies(illustratorSource.json),
+      );
+
+      if (missingFonts.length > 0) {
+        const command = getFontCacheCommand(missingFonts);
+        const error = `Missing bundled Google Fonts: ${missingFonts.join(
+          ", ",
+        )}. Run ${command} and redeploy before syncing this product.`;
+        const callback = await notifyWordPressSyncCallback({
+          ok: false,
+          templateId: payload.template.id,
+          error,
+          missingFonts,
+        });
+
+        return NextResponse.json(
+          {
+            error,
+            catalogStatus: "draft",
+            textElementCount: 0,
+            missingFonts,
+            command,
+            callback,
+          },
+          { status: 422 },
+        );
+      }
+
+      const importedTextElements = importIllustratorTemplate(
+        illustratorSource.json,
+        {
+          widthPx: mmToPixels(
+            payload.product.widthMm,
+            payload.printProfile.designMasterPpi,
+          ),
+          heightPx: mmToPixels(
+            payload.product.heightMm,
+            payload.printProfile.designMasterPpi,
+          ),
+          designMasterPpi: payload.printProfile.designMasterPpi,
+          defaultFontFamily: payload.template.defaultFont,
+          defaultFill: payload.template.defaultFill,
+        },
+      );
+
+      payload = withImportedIllustratorElements(payload, importedTextElements);
+      keys.illustratorSourceKey = getIllustratorSourceKey(payload);
+    }
+
     if (payload.template.textElements.length === 0) {
       const error = "Template textElements are required.";
       const callback = await notifyWordPressSyncCallback({
@@ -655,6 +813,15 @@ export async function POST(request: Request) {
       contentType: preview.contentType,
     });
     createdKeys.push(keys.previewKey);
+
+    if (illustratorSource && keys.illustratorSourceKey) {
+      await storage.putObject({
+        key: keys.illustratorSourceKey,
+        body: illustratorSource.body,
+        contentType: illustratorSource.contentType,
+      });
+      createdKeys.push(keys.illustratorSourceKey);
+    }
 
     await storage.putObject({
       key: keys.templateKey,
@@ -699,6 +866,12 @@ export async function POST(request: Request) {
       storage: storageName,
       keys,
       createdKeys,
+      templateSource: keys.illustratorSourceKey
+        ? {
+            type: "illustrator",
+            key: keys.illustratorSourceKey,
+          }
+        : undefined,
       supabase,
       callback,
     });

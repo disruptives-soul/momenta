@@ -79,13 +79,97 @@ function getTemplateDefaults(template: InvitationTemplate): PersonalizationValue
   );
 }
 
-function getDraftSceneForTemplate(
+function getTemplateSignature(template: InvitationTemplate) {
+  return JSON.stringify({
+    id: template.id,
+    widthMm: template.widthMm,
+    heightMm: template.heightMm,
+    widthPx: template.widthPx,
+    heightPx: template.heightPx,
+    safeArea: template.safeArea,
+    fields: Object.fromEntries(
+      Object.entries(template.fields).map(([key, field]) => [
+        key,
+        {
+          defaultValue: field.defaultValue,
+          source: field.source,
+          sourceTextKind: field.sourceTextKind,
+          x: field.x,
+          y: field.y,
+          width: field.width,
+          fontFamily: field.fontFamily,
+          pdfFont: field.pdfFont,
+          fontAsset: field.fontAsset,
+          fontWeight: field.fontWeight,
+          fontSize: field.fontSize,
+          fill: field.fill,
+          opacity: field.opacity,
+          align: field.align,
+          maxLines: field.maxLines,
+          lineHeight: field.lineHeight,
+          letterSpacing: field.letterSpacing,
+          rotation: field.rotation,
+        },
+      ]),
+    ),
+  });
+}
+
+function canReuseStoredTemplate(
   draft: PersonalizationDraft,
   template: InvitationTemplate,
 ) {
+  return (
+    draft.templateSnapshot?.id === template.id &&
+    getTemplateSignature(draft.templateSnapshot) === getTemplateSignature(template)
+  );
+}
+
+function getScopedTemplateValues(
+  draft: PersonalizationDraft,
+  template: InvitationTemplate,
+  useStoredValues: boolean,
+) {
+  const defaults = getTemplateDefaults(template);
+  const storedValues = useStoredValues
+    ? draft.valuesByTemplate[template.id] ?? {}
+    : {};
+
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, defaultValue]) => [
+      key,
+      typeof storedValues[key] === "string" ? storedValues[key] : defaultValue,
+    ]),
+  );
+}
+
+function sceneMatchesTemplate(
+  scene: TextElement[],
+  template: InvitationTemplate,
+) {
+  const fieldIds = Object.keys(template.fields);
+
+  if (scene.length !== fieldIds.length) {
+    return false;
+  }
+
+  const sceneIds = new Set(scene.map((element) => element.id));
+
+  return fieldIds.every((fieldId) => sceneIds.has(fieldId));
+}
+
+function getDraftSceneForTemplate(
+  draft: PersonalizationDraft,
+  template: InvitationTemplate,
+  useStoredScene: boolean,
+) {
   const existingScene = draft.scenes[template.id];
 
-  if (!existingScene) {
+  if (
+    !useStoredScene ||
+    !existingScene ||
+    !sceneMatchesTemplate(existingScene, template)
+  ) {
     return createTextSceneFromTemplate(template);
   }
 
@@ -97,9 +181,17 @@ function scopeDraftToProduct(
   product: PrototypeProduct,
   template: InvitationTemplate,
 ): PersonalizationDraft {
-  const templateValues =
-    draft.valuesByTemplate[template.id] ?? getTemplateDefaults(template);
-  const templateScene = getDraftSceneForTemplate(draft, template);
+  const canReuseDraftTemplate = canReuseStoredTemplate(draft, template);
+  const templateValues = getScopedTemplateValues(
+    draft,
+    template,
+    canReuseDraftTemplate,
+  );
+  const templateScene = getDraftSceneForTemplate(
+    draft,
+    template,
+    canReuseDraftTemplate,
+  );
 
   return {
     ...draft,

@@ -1,15 +1,18 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import type {
   PersonalizationLayoutOverrides,
   PersonalizationValues,
 } from "@/features/personalization/types/personalization-draft";
+import { getTextElementLines } from "@/features/personalization/services/text-scene-safe-area";
 import { cn } from "@/lib/utils";
 import type { InvitationTemplate, TextElement } from "../templates/template-types";
 import {
   getTemplateMasterAssetSrc,
   getTemplatePreviewAssetSrc,
 } from "../templates/template-assets";
+import { getPublicFontAssetUrl } from "../templates/google-font-assets";
 import { getRenderingTemplate } from "../templates/template-registry";
 import {
   getArcTextCharacters,
@@ -31,40 +34,114 @@ type TemplatePreviewProps = {
   compact?: boolean;
 };
 
-function wrapSceneText(element: TextElement) {
-  const maxCharactersPerLine = Math.max(
-    8,
-    Math.floor(element.width / (element.fontSize * 0.54)),
+type PreviewFontAsset = {
+  family: string;
+  source: string;
+  weight: string;
+};
+
+function getPrimaryFontFamily(fontFamily: string) {
+  return (
+    fontFamily
+      .split(",")[0]
+      ?.replaceAll("\"", "")
+      .replaceAll("'", "")
+      .trim() || fontFamily
   );
-  const lines: string[] = [];
+}
 
-  for (const paragraph of element.text.split(/\r?\n/)) {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean);
-    let currentLine = "";
+function getPreviewFontAssets(scene?: TextElement[]) {
+  const assets = new Map<string, PreviewFontAsset>();
 
-    if (words.length === 0) {
-      lines.push("");
-      continue;
+  scene?.forEach((element) => {
+    if (!element.fontAsset) {
+      return;
     }
 
-    for (const word of words) {
-      const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    const family = getPrimaryFontFamily(element.fontFamily);
+    const regular = element.fontAsset.regular;
+    const bold = element.fontAsset.bold;
 
-      if (!currentLine || nextLine.length <= maxCharactersPerLine) {
-        currentLine = nextLine;
-        continue;
+    assets.set(`${family}:400:${regular}`, {
+      family,
+      source: getPublicFontAssetUrl(regular),
+      weight: "400",
+    });
+
+    if (bold) {
+      assets.set(`${family}:700:${bold}`, {
+        family,
+        source: getPublicFontAssetUrl(bold),
+        weight: "700",
+      });
+    }
+  });
+
+  return Array.from(assets.values());
+}
+
+function hasLoadedFontFace(asset: PreviewFontAsset) {
+  return Array.from(document.fonts).some(
+    (font) =>
+      font.family.replaceAll("\"", "") === asset.family &&
+      font.weight === asset.weight &&
+      font.status === "loaded",
+  );
+}
+
+function usePreviewFonts(scene?: TextElement[]) {
+  const [, setLoadVersion] = useState(0);
+  const fontAssets = useMemo(() => getPreviewFontAssets(scene), [scene]);
+  const fontSignature = useMemo(
+    () =>
+      fontAssets
+        .map((asset) => `${asset.family}:${asset.weight}:${asset.source}`)
+        .join("|"),
+    [fontAssets],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("FontFace" in window)) {
+      return;
+    }
+
+    let isDisposed = false;
+
+    async function loadFonts() {
+      await Promise.all(
+        fontAssets.map(async (asset) => {
+          if (hasLoadedFontFace(asset)) {
+            return;
+          }
+
+          const fontFace = new FontFace(
+            asset.family,
+            `url("${asset.source}")`,
+            {
+              style: "normal",
+              weight: asset.weight,
+            },
+          );
+
+          const loadedFace = await fontFace.load();
+          document.fonts.add(loadedFace);
+        }),
+      );
+      await document.fonts.ready;
+
+      if (!isDisposed) {
+        setLoadVersion((current) => current + 1);
       }
-
-      lines.push(currentLine);
-      currentLine = word;
     }
 
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-  }
+    void loadFonts().catch((error) => {
+      console.warn("Momenta preview font load failed; using fallback font.", error);
+    });
 
-  return lines.length > 0 ? lines : [element.text.trim()];
+    return () => {
+      isDisposed = true;
+    };
+  }, [fontAssets, fontSignature]);
 }
 
 export function TemplatePreview({
@@ -80,6 +157,8 @@ export function TemplatePreview({
     explicitTemplate ??
     getRenderingTemplate(templateId) ??
     getRenderingTemplate("space-birthday-invitation-v1");
+
+  usePreviewFonts(scene);
 
   if (!template) {
     return null;
@@ -139,7 +218,7 @@ export function TemplatePreview({
         {scene
           ? scene.map((element) => {
               const lineHeight = element.lineHeight ?? 1.15;
-              const lines = wrapSceneText(element);
+              const lines = getTextElementLines(element);
 
               return (
                 <text

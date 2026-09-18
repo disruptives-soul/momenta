@@ -1,4 +1,4 @@
-export type TemplateTextAlign = "left" | "center" | "right";
+export type TemplateTextAlign = "left" | "center" | "right" | "justify";
 export type TemplatePdfFont = "helvetica" | "times-roman";
 
 export type TemplateFontAsset = {
@@ -30,6 +30,10 @@ export type TemplateTextControls = {
 export type TemplateTextField = {
   label: string;
   defaultValue: string;
+  source?: "manual" | "illustrator";
+  sourceTextKind?: "point" | "area";
+  needsReview?: boolean;
+  sourceMeta?: Record<string, unknown>;
   editable?: boolean;
   controls?: TemplateTextControls;
   x: number;
@@ -56,7 +60,10 @@ export type TextElement = {
   id: string;
   label: string;
   text: string;
-  source?: "manual";
+  source?: "manual" | "illustrator";
+  sourceTextKind?: "point" | "area";
+  needsReview?: boolean;
+  sourceMeta?: Record<string, unknown>;
   x: number;
   y: number;
   width: number;
