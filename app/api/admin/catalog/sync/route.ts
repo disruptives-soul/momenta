@@ -74,6 +74,21 @@ type CatalogStorageKeys = {
   productKey: string;
 };
 
+type WordPressSyncCallbackPayload =
+  | {
+      ok: true;
+      templateId: string;
+      catalogStatus: CatalogStatus;
+      textElementCount: number;
+      storage: string;
+      keys: CatalogStorageKeys;
+    }
+  | {
+      ok: false;
+      templateId: string;
+      error: string;
+    };
+
 type AutoTextElement = {
   id: string;
   label: string;
@@ -961,6 +976,66 @@ function getOcrStats(textElements: unknown[]) {
   };
 }
 
+function getWordPressSyncCallbackUrl() {
+  return (
+    process.env.MOMENTA_SYNC_CALLBACK_URL ??
+    "https://disruptive-soul.com/wp-test/wp-json/momenta/v1/sync-callback"
+  );
+}
+
+async function notifyWordPressSyncCallback(
+  payload: WordPressSyncCallbackPayload,
+) {
+  const url = getWordPressSyncCallbackUrl();
+  const secret = process.env.MOMENTA_ADMIN_SECRET;
+
+  if (!url) {
+    return { skipped: true as const, reason: "missing_callback_url" as const };
+  }
+
+  if (!secret) {
+    return { skipped: true as const, reason: "missing_admin_secret" as const };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const body = await response.text();
+
+    if (!response.ok) {
+      return {
+        ok: false as const,
+        status: response.status,
+        detail: body.slice(0, 500),
+      };
+    }
+
+    return {
+      ok: true as const,
+      status: response.status,
+      detail: body.slice(0, 500),
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      detail: getErrorMessage(error),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function revalidateCatalogPaths(payload: CatalogSyncPayload) {
   revalidatePath("/");
   revalidatePath("/catalog");
@@ -1156,11 +1231,19 @@ export async function POST(request: Request) {
     }
 
     if (payload.template.textElements.length === 0) {
+      const error = "No text layers detected from preview image";
+      const callback = await notifyWordPressSyncCallback({
+        ok: false,
+        templateId: payload.template.id,
+        error,
+      });
+
       return NextResponse.json(
         {
-          error: "No text layers detected from preview image",
+          error,
           catalogStatus: "draft",
           textElementCount: 0,
+          callback,
         },
         { status: 422 },
       );
@@ -1207,6 +1290,16 @@ export async function POST(request: Request) {
 
     revalidateCatalogPaths(payload);
 
+    const callbackPayload: WordPressSyncCallbackPayload = {
+      ok: true,
+      templateId: payload.template.id,
+      catalogStatus,
+      textElementCount: templateObject.textElements.length,
+      storage: storageName,
+      keys,
+    };
+    const callback = await notifyWordPressSyncCallback(callbackPayload);
+
     return NextResponse.json({
       ok: true,
       collectionSlug: payload.collection.slug,
@@ -1219,15 +1312,24 @@ export async function POST(request: Request) {
       keys,
       createdKeys,
       supabase,
+      callback,
     });
   } catch (error) {
+    const detail = getErrorMessage(error);
+    const callback = await notifyWordPressSyncCallback({
+      ok: false,
+      templateId: payload.template.id,
+      error: detail,
+    });
+
     return NextResponse.json(
       {
         error: "Catalog sync failed.",
-        detail: getErrorMessage(error),
+        detail,
         storage: storageName,
         created: createdKeys.length,
         createdKeys,
+        callback,
       },
       { status: 500 },
     );
