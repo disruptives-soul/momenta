@@ -14,7 +14,10 @@ import type {
   InvitationTemplate,
   TextElement,
 } from "@/features/rendering/templates/template-types";
-import { getTemplateMasterAssetSrc } from "@/features/rendering/templates/template-assets";
+import {
+  getTemplateMasterAssetSrc,
+  getTemplatePreviewAssetSrc,
+} from "@/features/rendering/templates/template-assets";
 import { useTemplateScale } from "../hooks/use-template-scale";
 import { getScaledFontSize } from "../services/template-layout";
 import { EditableText } from "./editable-text";
@@ -48,21 +51,80 @@ type SelectionRect = {
   height: number;
 };
 
-function useCanvasImage(src: string) {
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+type CanvasImageState = {
+  src: string;
+  image: HTMLImageElement | null;
+  isLoading: boolean;
+  hasError: boolean;
+};
+
+function useCanvasImage(src: string, fallbackSrc?: string) {
+  const [state, setState] = useState<CanvasImageState>({
+    src,
+    image: null,
+    isLoading: true,
+    hasError: false,
+  });
 
   useEffect(() => {
-    const nextImage = new window.Image();
-    nextImage.decoding = "async";
-    nextImage.src = src;
-    nextImage.onload = () => setImage(nextImage);
+    let isDisposed = false;
+    let currentImage: HTMLImageElement | null = null;
+
+    function load(nextSrc: string, isFallback = false) {
+      const nextImage = new window.Image();
+      currentImage = nextImage;
+      nextImage.decoding = "async";
+      nextImage.onload = () => {
+        if (isDisposed) {
+          return;
+        }
+
+        setState({
+          src,
+          image: nextImage,
+          isLoading: false,
+          hasError: false,
+        });
+      };
+      nextImage.onerror = () => {
+        if (isDisposed) {
+          return;
+        }
+
+        if (!isFallback && fallbackSrc && fallbackSrc !== nextSrc) {
+          load(fallbackSrc, true);
+          return;
+        }
+
+        setState({
+          src,
+          image: null,
+          isLoading: false,
+          hasError: true,
+        });
+      };
+      nextImage.src = nextSrc;
+    }
+
+    load(src);
 
     return () => {
-      nextImage.onload = null;
-    };
-  }, [src]);
+      isDisposed = true;
 
-  return image;
+      if (currentImage) {
+        currentImage.onload = null;
+        currentImage.onerror = null;
+      }
+    };
+  }, [fallbackSrc, src]);
+
+  const isCurrentSrc = state.src === src;
+
+  return {
+    hasError: isCurrentSrc ? state.hasError : false,
+    image: isCurrentSrc ? state.image : null,
+    isLoading: isCurrentSrc ? state.isLoading : true,
+  };
 }
 
 export function PersonalizationCanvas({
@@ -80,7 +142,14 @@ export function PersonalizationCanvas({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const scale = useTemplateScale(containerRef, template, zoom);
-  const image = useCanvasImage(getTemplateMasterAssetSrc(template));
+  const {
+    hasError: hasImageError,
+    image,
+    isLoading: isImageLoading,
+  } = useCanvasImage(
+    getTemplateMasterAssetSrc(template),
+    getTemplatePreviewAssetSrc(template),
+  );
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [alignmentGuides, setAlignmentGuides] = useState<
     CanvasAlignmentGuide[]
@@ -384,7 +453,35 @@ export function PersonalizationCanvas({
                 x={0}
                 y={0}
               />
-            ) : null}
+            ) : (
+              <>
+                <Rect
+                  fill="#fbf7f1"
+                  height={scale.height}
+                  listening={false}
+                  width={scale.width}
+                  x={0}
+                  y={0}
+                />
+                <KonvaText
+                  align="center"
+                  fill="#8b7668"
+                  fontFamily="Arial"
+                  fontSize={Math.max(14, scale.width / 42)}
+                  listening={false}
+                  text={
+                    isImageLoading
+                      ? "Cargando arte..."
+                      : hasImageError
+                        ? "No se pudo cargar la imagen base"
+                        : ""
+                  }
+                  width={scale.width}
+                  x={0}
+                  y={Math.max(24, scale.height / 2 - 18)}
+                />
+              </>
+            )}
           </Layer>
           <Layer name="TextLayer">
             {!previewMode

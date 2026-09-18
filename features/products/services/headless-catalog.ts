@@ -72,17 +72,25 @@ type SupabaseCatalogCollectionRow = {
   description?: string | null;
 };
 
+function isUsableEnvValue(value?: string) {
+  return Boolean(value && value.trim() !== "" && value !== "[SENSITIVE]");
+}
+
+function parseJsonFile<T>(raw: string) {
+  return JSON.parse(raw.replace(/^\uFEFF/, "")) as T;
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!isUsableEnvValue(url) || !isUsableEnvValue(serviceRoleKey)) {
     return null;
   }
 
   return {
-    url: url.replace(/\/+$/, ""),
-    serviceRoleKey,
+    url: url!.replace(/\/+$/, ""),
+    serviceRoleKey: serviceRoleKey!,
   };
 }
 
@@ -93,22 +101,27 @@ async function readSupabaseTable<T>(table: string, select = "*") {
     return null;
   }
 
-  const response = await fetch(
-    `${config.url}/rest/v1/${table}?select=${encodeURIComponent(select)}`,
-    {
-      headers: {
-        apikey: config.serviceRoleKey,
-        Authorization: `Bearer ${config.serviceRoleKey}`,
+  try {
+    const response = await fetch(
+      `${config.url}/rest/v1/${table}?select=${encodeURIComponent(select)}`,
+      {
+        headers: {
+          apikey: config.serviceRoleKey,
+          Authorization: `Bearer ${config.serviceRoleKey}`,
+        },
+        next: { revalidate: 30 },
       },
-      next: { revalidate: 30 },
-    },
-  );
+    );
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as T[];
+  } catch (error) {
+    console.warn(`Supabase catalog read failed for ${table}; using local storage fallback.`, error);
     return null;
   }
-
-  return (await response.json()) as T[];
 }
 
 function getPieceTypeName(pieceType: string) {
@@ -271,7 +284,7 @@ async function listProductsFromLocalStorage() {
   const manifests = await Promise.all(
     files.map(async (file) => {
       const raw = await readFile(file, "utf8");
-      return JSON.parse(raw) as CatalogProductManifest;
+      return parseJsonFile<CatalogProductManifest>(raw);
     }),
   );
 

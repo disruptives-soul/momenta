@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { tmpdir } from "node:os";
-import sharp from "sharp";
 import {
   createStorageProvider,
   getStorageProviderName,
@@ -89,95 +87,8 @@ type WordPressSyncCallbackPayload =
       error: string;
     };
 
-type AutoTextElement = {
-  id: string;
-  label: string;
-  text: string;
-  source: "ocr";
-  confidence: number;
-  needsReview: boolean;
-  x: number;
-  y: number;
-  width: number;
-  fontFamily: string;
-  pdfFont: "helvetica";
-  fontWeight: number;
-  fontSize: number;
-  minFontSize: number;
-  fill: string;
-  align: "center";
-  maxLines: number;
-  lineHeight: number;
-  letterSpacing: number;
-};
-
-type DetectedTextBox = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  area: number;
-  width: number;
-  height: number;
-};
-
-type CropBounds = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
-type OcrTextResult = {
-  text: string;
-  confidence: number;
-  needsReview: boolean;
-};
-
-type OcrLineResult = OcrTextResult & {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-const TESSERACT_INIT_TIMEOUT_MS = 15_000;
-const FULL_PREVIEW_OCR_TIMEOUT_MS = 45_000;
-const CROP_OCR_TIMEOUT_MS = 5_000;
-const TESSERACT_TERMINATE_TIMEOUT_MS = 3_000;
-const MAX_OCR_CROPS = 8;
-
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(label)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  }
-}
-
-async function terminateTesseractWorker(worker: { terminate: () => Promise<unknown> }) {
-  try {
-    await withTimeout(
-      worker.terminate(),
-      TESSERACT_TERMINATE_TIMEOUT_MS,
-      "Tesseract worker termination timed out",
-    );
-  } catch (error) {
-    console.error("Tesseract worker termination failed", error);
-  }
 }
 
 function isAuthorized(request: Request) {
@@ -398,493 +309,6 @@ function getStorageKeys(payload: CatalogSyncPayload): CatalogStorageKeys {
   };
 }
 
-function rgbToHex(red: number, green: number, blue: number) {
-  return `#${[red, green, blue]
-    .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
-function getEstimatedTextColor(
-  previewPixels: Buffer,
-  mask: Uint8Array,
-  width: number,
-  box: { minX: number; minY: number; maxX: number; maxY: number },
-) {
-  let red = 0;
-  let green = 0;
-  let blue = 0;
-  let count = 0;
-
-  for (let y = box.minY; y <= box.maxY; y += 1) {
-    for (let x = box.minX; x <= box.maxX; x += 1) {
-      const pixelIndex = y * width + x;
-
-      if (!mask[pixelIndex]) {
-        continue;
-      }
-
-      const offset = pixelIndex * 4;
-      red += previewPixels[offset] ?? 0;
-      green += previewPixels[offset + 1] ?? 0;
-      blue += previewPixels[offset + 2] ?? 0;
-      count += 1;
-    }
-  }
-
-  if (count === 0) {
-    return "#202124";
-  }
-
-  return rgbToHex(red / count, green / count, blue / count);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function getCropBounds(
-  box: DetectedTextBox,
-  scaleX: number,
-  scaleY: number,
-  sourceWidth: number,
-  sourceHeight: number,
-): CropBounds {
-  const paddingX = Math.max(12, Math.round(box.width * scaleX * 0.22));
-  const paddingY = Math.max(8, Math.round(box.height * scaleY * 0.58));
-  const left = clamp(Math.floor(box.minX * scaleX - paddingX), 0, sourceWidth - 1);
-  const top = clamp(Math.floor(box.minY * scaleY - paddingY), 0, sourceHeight - 1);
-  const right = clamp(Math.ceil((box.maxX + 1) * scaleX + paddingX), left + 1, sourceWidth);
-  const bottom = clamp(Math.ceil((box.maxY + 1) * scaleY + paddingY), top + 1, sourceHeight);
-
-  return {
-    left,
-    top,
-    width: right - left,
-    height: bottom - top,
-  };
-}
-
-async function createOcrCrop(preview: Uint8Array, crop: CropBounds) {
-  const upscale = crop.width < 900 ? Math.min(4, Math.max(2, Math.ceil(900 / crop.width))) : 1;
-
-  return sharp(preview)
-    .extract(crop)
-    .resize({
-      width: Math.min(1800, crop.width * upscale),
-      height: Math.min(900, crop.height * upscale),
-      fit: "inside",
-      withoutEnlargement: false,
-    })
-    .grayscale()
-    .normalize()
-    .sharpen()
-    .png()
-    .toBuffer();
-}
-
-function normalizeOcrText(value: string) {
-  return value
-    .replace(/\s+/g, " ")
-    .replace(/[|_~`]/g, "")
-    .trim();
-}
-
-function isWatermarkText(value: string) {
-  const normalized = value.toUpperCase().replace(/[^A-Z]/g, "");
-
-  return (
-    normalized.includes("MOMENTA") ||
-    normalized.includes("PREVIEW") ||
-    normalized.includes("VISTA") ||
-    normalized.includes("PREVIA")
-  );
-}
-
-function hasReadableTemplateText(value: string) {
-  return /[A-ZÀ-ÿ0-9&]/i.test(value) && !isWatermarkText(value);
-}
-
-async function recognizeTextCrops(crops: Buffer[]): Promise<OcrTextResult[]> {
-  const fallback = crops.map(() => ({
-    text: "",
-    confidence: 0,
-    needsReview: true,
-  }));
-
-  if (crops.length === 0) {
-    return [];
-  }
-
-  try {
-    const tesseract = await import("tesseract.js");
-    const worker = await withTimeout(
-      tesseract.createWorker("eng", undefined, {
-        cachePath: tmpdir(),
-      }),
-      TESSERACT_INIT_TIMEOUT_MS,
-      "Tesseract crop OCR worker init timed out",
-    );
-
-    try {
-      await worker.setParameters({
-        tessedit_pageseg_mode: tesseract.PSM.SINGLE_LINE,
-        preserve_interword_spaces: "1",
-        user_defined_dpi: "300",
-      });
-
-      const results: OcrTextResult[] = [];
-
-      for (const crop of crops.slice(0, MAX_OCR_CROPS)) {
-        const result = await withTimeout(
-          worker.recognize(crop),
-          CROP_OCR_TIMEOUT_MS,
-          "Tesseract crop OCR timed out",
-        );
-        const confidence = Math.round(result.data.confidence ?? 0);
-        const text = normalizeOcrText(result.data.text ?? "");
-        const hasUsableText = hasReadableTemplateText(text) && confidence >= 60;
-
-        results.push({
-          text: hasUsableText ? text : "",
-          confidence,
-          needsReview: !hasUsableText,
-        });
-      }
-
-      return results;
-    } finally {
-      await terminateTesseractWorker(worker);
-    }
-  } catch (error) {
-    console.error("Tesseract OCR failed", error);
-    return fallback;
-  }
-}
-
-async function recognizePreviewTextLines(
-  preview: Uint8Array,
-  previewWidth: number,
-  previewHeight: number,
-): Promise<OcrLineResult[]> {
-  const maxOcrWidth = 1000;
-  const scale = previewWidth > maxOcrWidth ? maxOcrWidth / previewWidth : 1;
-  const ocrWidth = Math.max(1, Math.round(previewWidth * scale));
-  const ocrHeight = Math.max(1, Math.round(previewHeight * scale));
-  const fallback: OcrLineResult[] = [];
-
-  try {
-    const image = await sharp(preview)
-      .resize(ocrWidth, ocrHeight, { fit: "fill" })
-      .grayscale()
-      .normalize()
-      .sharpen()
-      .png()
-      .toBuffer();
-    const tesseract = await import("tesseract.js");
-    const worker = await withTimeout(
-      tesseract.createWorker("eng", undefined, {
-        cachePath: tmpdir(),
-      }),
-      TESSERACT_INIT_TIMEOUT_MS,
-      "Tesseract full-preview OCR worker init timed out",
-    );
-
-    try {
-      await worker.setParameters({
-        tessedit_pageseg_mode: tesseract.PSM.SPARSE_TEXT,
-        preserve_interword_spaces: "1",
-        user_defined_dpi: "300",
-      });
-
-      const result = await withTimeout(
-        worker.recognize(image),
-        FULL_PREVIEW_OCR_TIMEOUT_MS,
-        "Tesseract full-preview OCR timed out",
-      );
-      const lines =
-        result.data.blocks?.flatMap((block) =>
-          block.paragraphs.flatMap((paragraph) => paragraph.lines),
-        ) ?? [];
-
-      const inverseScale = scale > 0 ? 1 / scale : 1;
-
-      return lines
-        .map((line): OcrLineResult => {
-          const text = normalizeOcrText(line.text ?? "");
-          const confidence = Math.round(line.confidence ?? 0);
-          const width = Math.max(1, line.bbox.x1 - line.bbox.x0);
-          const height = Math.max(1, line.bbox.y1 - line.bbox.y0);
-          const hasUsableText = hasReadableTemplateText(text) && confidence >= 45;
-
-          return {
-            text: hasUsableText ? text : "",
-            confidence,
-            needsReview: !hasUsableText,
-            x: (line.bbox.x0 + width / 2) * inverseScale,
-            y: (line.bbox.y0 + height * 0.82) * inverseScale,
-            width: width * inverseScale,
-            height: height * inverseScale,
-          };
-        })
-        .filter((line) => line.text !== "")
-        .sort((a, b) => (Math.abs(a.y - b.y) < 8 ? a.x - b.x : a.y - b.y))
-        .slice(0, 16);
-    } finally {
-      await terminateTesseractWorker(worker);
-    }
-  } catch (error) {
-    console.error("Tesseract full-preview OCR failed", error);
-    return fallback;
-  }
-}
-
-function createTextElementsFromOcrLines(
-  lines: OcrLineResult[],
-  sourceWidth: number,
-  sourceHeight: number,
-  previewWidth: number,
-  previewHeight: number,
-): AutoTextElement[] {
-  const scaleX = sourceWidth / previewWidth;
-  const scaleY = sourceHeight / previewHeight;
-
-  return lines.map((line, index) => {
-    const fontSize = Math.min(140, Math.max(24, line.height * scaleY * 0.94));
-
-    return {
-      id: `auto-text-${index + 1}`,
-      label: `Campo editable ${index + 1}`,
-      text: line.text,
-      source: "ocr",
-      confidence: line.confidence,
-      needsReview: line.needsReview,
-      x: Math.round(line.x * scaleX),
-      y: Math.round(line.y * scaleY),
-      width: Math.round(Math.max(120, line.width * scaleX * 1.2)),
-      fontFamily: "Arial, Helvetica, sans-serif",
-      pdfFont: "helvetica",
-      fontWeight: fontSize > 58 ? 700 : 500,
-      fontSize: Math.round(fontSize),
-      minFontSize: 24,
-      fill: "#202124",
-      align: "center",
-      maxLines: 1,
-      lineHeight: 1.15,
-      letterSpacing: 0,
-    };
-  });
-}
-
-function dilateMask(mask: Uint8Array, width: number, height: number) {
-  const output = new Uint8Array(mask.length);
-  const radiusX = Math.max(8, Math.round(width * 0.018));
-  const radiusY = Math.max(2, Math.round(height * 0.004));
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!mask[y * width + x]) {
-        continue;
-      }
-
-      const minY = Math.max(0, y - radiusY);
-      const maxY = Math.min(height - 1, y + radiusY);
-      const minX = Math.max(0, x - radiusX);
-      const maxX = Math.min(width - 1, x + radiusX);
-
-      for (let yy = minY; yy <= maxY; yy += 1) {
-        const row = yy * width;
-
-        for (let xx = minX; xx <= maxX; xx += 1) {
-          output[row + xx] = 1;
-        }
-      }
-    }
-  }
-
-  return output;
-}
-
-function findMaskComponents(mask: Uint8Array, width: number, height: number) {
-  const visited = new Uint8Array(mask.length);
-  const components: Array<{
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-    area: number;
-  }> = [];
-
-  for (let start = 0; start < mask.length; start += 1) {
-    if (!mask[start] || visited[start]) {
-      continue;
-    }
-
-    const queue = [start];
-    visited[start] = 1;
-    let cursor = 0;
-    let area = 0;
-    let minX = width;
-    let minY = height;
-    let maxX = 0;
-    let maxY = 0;
-
-    while (cursor < queue.length) {
-      const index = queue[cursor];
-      cursor += 1;
-
-      const x = index % width;
-      const y = Math.floor(index / width);
-      area += 1;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-
-      for (let yy = Math.max(0, y - 1); yy <= Math.min(height - 1, y + 1); yy += 1) {
-        for (let xx = Math.max(0, x - 1); xx <= Math.min(width - 1, x + 1); xx += 1) {
-          const next = yy * width + xx;
-
-          if (mask[next] && !visited[next]) {
-            visited[next] = 1;
-            queue.push(next);
-          }
-        }
-      }
-    }
-
-    components.push({ minX, minY, maxX, maxY, area });
-  }
-
-  return components;
-}
-
-async function createAutoTextElementsFromPreview(
-  master: Uint8Array,
-  preview: Uint8Array,
-): Promise<AutoTextElement[]> {
-  const masterImage = sharp(master);
-  const [masterMetadata, previewMetadata] = await Promise.all([
-    masterImage.metadata(),
-    sharp(preview).metadata(),
-  ]);
-  const sourceWidth = masterMetadata.width ?? 0;
-  const sourceHeight = masterMetadata.height ?? 0;
-  const previewWidth = previewMetadata.width ?? sourceWidth;
-  const previewHeight = previewMetadata.height ?? sourceHeight;
-
-  if (sourceWidth <= 0 || sourceHeight <= 0 || previewWidth <= 0 || previewHeight <= 0) {
-    return [];
-  }
-
-  const ocrLines = await recognizePreviewTextLines(preview, previewWidth, previewHeight);
-
-  if (ocrLines.length > 0) {
-    return createTextElementsFromOcrLines(
-      ocrLines,
-      sourceWidth,
-      sourceHeight,
-      previewWidth,
-      previewHeight,
-    );
-  }
-
-  const analysisWidth = Math.min(1000, sourceWidth);
-  const analysisHeight = Math.max(1, Math.round((sourceHeight / sourceWidth) * analysisWidth));
-  const [masterPixels, previewPixels] = await Promise.all([
-    sharp(master)
-      .resize(analysisWidth, analysisHeight, { fit: "fill" })
-      .ensureAlpha()
-      .raw()
-      .toBuffer(),
-    sharp(preview)
-      .resize(analysisWidth, analysisHeight, { fit: "fill" })
-      .ensureAlpha()
-      .raw()
-      .toBuffer(),
-  ]);
-  const mask = new Uint8Array(analysisWidth * analysisHeight);
-
-  for (let index = 0; index < mask.length; index += 1) {
-    const offset = index * 4;
-    const redDiff = Math.abs((previewPixels[offset] ?? 0) - (masterPixels[offset] ?? 0));
-    const greenDiff = Math.abs((previewPixels[offset + 1] ?? 0) - (masterPixels[offset + 1] ?? 0));
-    const blueDiff = Math.abs((previewPixels[offset + 2] ?? 0) - (masterPixels[offset + 2] ?? 0));
-    const diff = redDiff + greenDiff + blueDiff;
-
-    if (diff > 95) {
-      mask[index] = 1;
-    }
-  }
-
-  const groupedMask = dilateMask(mask, analysisWidth, analysisHeight);
-  const scaleX = sourceWidth / analysisWidth;
-  const scaleY = sourceHeight / analysisHeight;
-  const previewScaleX = previewWidth / analysisWidth;
-  const previewScaleY = previewHeight / analysisHeight;
-  const minWidth = analysisWidth * 0.025;
-  const minHeight = analysisHeight * 0.004;
-  const maxComponentArea = analysisWidth * analysisHeight * 0.22;
-
-  const boxes = findMaskComponents(groupedMask, analysisWidth, analysisHeight)
-    .map((box) => ({
-      ...box,
-      width: box.maxX - box.minX + 1,
-      height: box.maxY - box.minY + 1,
-    }))
-    .filter((box) => (
-      box.width >= minWidth &&
-      box.height >= minHeight &&
-      box.area <= maxComponentArea &&
-      box.width <= analysisWidth * 0.92 &&
-      box.height <= analysisHeight * 0.35
-    ))
-    .sort((a, b) => (a.minY === b.minY ? a.minX - b.minX : a.minY - b.minY))
-    .slice(0, 12);
-
-  const ocrCrops = await Promise.all(
-    boxes.map((box) => createOcrCrop(
-      preview,
-      getCropBounds(box, previewScaleX, previewScaleY, previewWidth, previewHeight),
-    )),
-  );
-  const ocrResults = await recognizeTextCrops(ocrCrops);
-
-  return boxes
-    .map((box, index) => {
-      const x = ((box.minX + box.maxX) / 2) * scaleX;
-      const y = (box.minY + box.height * 0.82) * scaleY;
-      const width = Math.max(120, box.width * scaleX * 1.18);
-      const fontSize = Math.min(140, Math.max(32, box.height * scaleY * 0.72));
-      const ocr = ocrResults[index] ?? {
-        text: "",
-        confidence: 0,
-        needsReview: true,
-      };
-
-      return {
-        id: `auto-text-${index + 1}`,
-        label: `Campo editable ${index + 1}`,
-        text: ocr.text,
-        source: "ocr",
-        confidence: ocr.confidence,
-        needsReview: ocr.needsReview,
-        x: Math.round(x),
-        y: Math.round(y),
-        width: Math.round(width),
-        fontFamily: "Arial, Helvetica, sans-serif",
-        pdfFont: "helvetica",
-        fontWeight: box.height > analysisHeight * 0.04 ? 700 : 500,
-        fontSize: Math.round(fontSize),
-        minFontSize: 24,
-        fill: getEstimatedTextColor(previewPixels, mask, analysisWidth, box),
-        align: "center",
-        maxLines: box.height > analysisHeight * 0.045 ? 2 : 1,
-        lineHeight: 1.15,
-        letterSpacing: 0,
-      };
-    });
-}
-
 function getCatalogStatus(payload: CatalogSyncPayload): CatalogStatus {
   const status = payload.template.status ?? payload.product.status;
   const hasTextElements = payload.template.textElements.length > 0;
@@ -952,35 +376,14 @@ function getProductObject(
   };
 }
 
-function getOcrStats(textElements: unknown[]) {
-  let ocrTextCount = 0;
-  let needsReviewCount = 0;
-
-  for (const element of textElements) {
-    if (!isRecord(element)) {
-      continue;
-    }
-
-    if (typeof element.text === "string" && element.text.trim() !== "") {
-      ocrTextCount += 1;
-    }
-
-    if (element.needsReview === true) {
-      needsReviewCount += 1;
-    }
-  }
-
-  return {
-    ocrTextCount,
-    needsReviewCount,
-  };
+function isUsableEnvValue(value?: string) {
+  return Boolean(value && value.trim() !== "" && value !== "[SENSITIVE]");
 }
 
 function getWordPressSyncCallbackUrl() {
-  return (
-    process.env.MOMENTA_SYNC_CALLBACK_URL ??
-    "https://disruptive-soul.com/wp-test/wp-json/momenta/v1/sync-callback"
-  );
+  return isUsableEnvValue(process.env.MOMENTA_SYNC_CALLBACK_URL)
+    ? process.env.MOMENTA_SYNC_CALLBACK_URL
+    : undefined;
 }
 
 async function notifyWordPressSyncCallback(
@@ -993,7 +396,7 @@ async function notifyWordPressSyncCallback(
     return { skipped: true as const, reason: "missing_callback_url" as const };
   }
 
-  if (!secret) {
+  if (!isUsableEnvValue(secret)) {
     return { skipped: true as const, reason: "missing_admin_secret" as const };
   }
 
@@ -1061,13 +464,13 @@ function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!isUsableEnvValue(url) || !isUsableEnvValue(serviceRoleKey)) {
     return null;
   }
 
   return {
-    url: url.replace(/\/+$/, ""),
-    serviceRoleKey,
+    url: url!.replace(/\/+$/, ""),
+    serviceRoleKey: serviceRoleKey!,
   };
 }
 
@@ -1212,26 +615,8 @@ export async function POST(request: Request) {
   const createdKeys: string[] = [];
 
   try {
-    const [master, preview] = await Promise.all([
-      downloadAsset(payload.assets.masterUrl, "image/jpeg"),
-      downloadAsset(payload.assets.previewUrl, "image/webp"),
-    ]);
-
     if (payload.template.textElements.length === 0) {
-      payload = {
-        ...payload,
-        template: {
-          ...payload.template,
-          textElements: await createAutoTextElementsFromPreview(
-            master.body,
-            preview.body,
-          ),
-        },
-      };
-    }
-
-    if (payload.template.textElements.length === 0) {
-      const error = "No text layers detected from preview image";
+      const error = "Template textElements are required.";
       const callback = await notifyWordPressSyncCallback({
         ok: false,
         templateId: payload.template.id,
@@ -1248,6 +633,11 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
+
+    const [master, preview] = await Promise.all([
+      downloadAsset(payload.assets.masterUrl, "image/jpeg"),
+      downloadAsset(payload.assets.previewUrl, "image/webp"),
+    ]);
 
     const templateObject = getTemplateObject(payload, keys);
     const productObject = getProductObject(payload, keys, storageName);
@@ -1286,7 +676,6 @@ export async function POST(request: Request) {
       storageName,
     );
     const catalogStatus = getCatalogStatus(payload);
-    const ocrStats = getOcrStats(templateObject.textElements);
 
     revalidateCatalogPaths(payload);
 
@@ -1307,7 +696,6 @@ export async function POST(request: Request) {
       templateId: payload.template.id,
       catalogStatus,
       textElementCount: templateObject.textElements.length,
-      ...ocrStats,
       storage: storageName,
       keys,
       createdKeys,

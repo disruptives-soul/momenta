@@ -38,40 +38,25 @@ function mmToPixels(mm: number, ppi: number) {
   return Math.round((mm / 25.4) * ppi);
 }
 
-function getAutoTextNumber(
-  element: HeadlessTemplateObject["textElements"][number],
-  index: number,
-) {
-  const match = element.id.match(/^auto-text-(\d+)$/);
-
-  return match ? Number(match[1]) : index + 1;
+function isUsableEnvValue(value?: string) {
+  return Boolean(value && value.trim() !== "" && value !== "[SENSITIVE]");
 }
 
-function isAutoDetectedText(
-  element: HeadlessTemplateObject["textElements"][number],
-) {
-  return element.id.startsWith("auto-text-");
-}
-
-function isLegacyAutoPlaceholder(value?: string) {
-  return typeof value === "string" && /^Texto(?: detectado)?\s*\d+$/i.test(value.trim());
-}
-
-function clampAutoFontSize(value: number) {
-  return Math.min(140, Math.max(24, value));
+function parseJsonFile<T>(raw: string) {
+  return JSON.parse(raw.replace(/^\uFEFF/, "")) as T;
 }
 
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!isUsableEnvValue(url) || !isUsableEnvValue(serviceRoleKey)) {
     return null;
   }
 
   return {
-    url: url.replace(/\/+$/, ""),
-    serviceRoleKey,
+    url: url!.replace(/\/+$/, ""),
+    serviceRoleKey: serviceRoleKey!,
   };
 }
 
@@ -82,25 +67,30 @@ async function loadTemplateFromSupabase(templateId: string) {
     return null;
   }
 
-  const response = await fetch(
-    `${config.url}/rest/v1/momenta_catalog_templates?id=eq.${encodeURIComponent(
-      templateId,
-    )}&select=id,template_payload`,
-    {
-      headers: {
-        apikey: config.serviceRoleKey,
-        Authorization: `Bearer ${config.serviceRoleKey}`,
+  try {
+    const response = await fetch(
+      `${config.url}/rest/v1/momenta_catalog_templates?id=eq.${encodeURIComponent(
+        templateId,
+      )}&select=id,template_payload`,
+      {
+        headers: {
+          apikey: config.serviceRoleKey,
+          Authorization: `Bearer ${config.serviceRoleKey}`,
+        },
+        next: { revalidate: 30 },
       },
-      next: { revalidate: 30 },
-    },
-  );
+    );
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    const rows = (await response.json()) as SupabaseTemplateRow[];
+    return rows[0]?.template_payload ?? null;
+  } catch (error) {
+    console.warn(`Supabase template read failed for ${templateId}; using local storage fallback.`, error);
     return null;
   }
-
-  const rows = (await response.json()) as SupabaseTemplateRow[];
-  return rows[0]?.template_payload ?? null;
 }
 
 async function loadTemplateFromStorage(templateId: string) {
@@ -108,7 +98,7 @@ async function loadTemplateFromStorage(templateId: string) {
   const templatePath = await findTemplateFile(root, templateId);
 
   if (templatePath) {
-    return JSON.parse(await readFile(templatePath, "utf8")) as HeadlessTemplateObject;
+    return parseJsonFile<HeadlessTemplateObject>(await readFile(templatePath, "utf8"));
   }
 
   const storage = createStorageProvider();
@@ -117,7 +107,7 @@ async function loadTemplateFromStorage(templateId: string) {
   }).catch(() => null);
 
   return object?.body
-    ? (JSON.parse(Buffer.from(object.body).toString("utf8")) as HeadlessTemplateObject)
+    ? parseJsonFile<HeadlessTemplateObject>(Buffer.from(object.body).toString("utf8"))
     : null;
 }
 
@@ -139,6 +129,16 @@ async function findTemplateFile(root: string, templateId: string): Promise<strin
     if (entry.name === "template.json") {
       const raw = await readFile(path, "utf8").catch(() => "");
 
+      try {
+        const template = parseJsonFile<{ id?: unknown }>(raw);
+
+        if (template.id === templateId) {
+          return path;
+        }
+      } catch {
+        // Ignore malformed local templates and keep scanning.
+      }
+
       if (raw.includes(`"id": "${templateId}"`)) {
         return path;
       }
@@ -157,20 +157,13 @@ function normalizeField(
   const fallbackFont = defaultTextFonts[0];
   const x = element.x ?? widthPx / 2;
   const y = element.y ?? heightPx * (0.25 + index * 0.12);
-  const isAutoText = isAutoDetectedText(element);
-  const autoTextNumber = getAutoTextNumber(element, index);
   const rawFontSize =
     element.fontSize ?? Math.max(72, Math.round(heightPx * 0.035));
-  const fontSize = isAutoText ? clampAutoFontSize(rawFontSize) : rawFontSize;
-  const defaultValue =
-    isAutoText && isLegacyAutoPlaceholder(element.text)
-      ? ""
-      : element.text ?? (isAutoText ? "" : "Nuevo texto");
+  const fontSize = rawFontSize;
+  const defaultValue = element.text ?? "";
 
   return {
-    label: isAutoText
-      ? `Campo editable ${autoTextNumber}`
-      : element.label ?? `Texto ${index + 1}`,
+    label: element.label ?? `Texto ${index + 1}`,
     defaultValue,
     editable: true,
     x,

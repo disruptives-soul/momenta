@@ -1,13 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { notFound } from "next/navigation";
-import { createStorageProvider, getStorageProviderName } from "@/infrastructure/storage/storage-provider-factory";
 import { getRenderingTemplateAsync } from "@/features/rendering/templates/headless-template-registry";
 import { getMasterAssetPath } from "@/features/rendering/templates/load-runtime-template";
+import { getStorageImageResponse } from "@/infrastructure/storage/storage-asset-response";
 
 export const runtime = "nodejs";
 
 const PUBLIC_CACHE_HEADERS = {
   "Cache-Control": "public, max-age=60, stale-while-revalidate=86400",
+};
+const DEV_CACHE_HEADERS = {
+  "Cache-Control": "no-store",
 };
 
 type TemplateMasterAssetRouteProps = {
@@ -23,6 +26,12 @@ function bytesToBody(bytes: Uint8Array) {
   return body;
 }
 
+function getAssetCacheHeaders() {
+  return process.env.NODE_ENV === "development"
+    ? DEV_CACHE_HEADERS
+    : PUBLIC_CACHE_HEADERS;
+}
+
 export async function GET(
   _request: Request,
   { params }: TemplateMasterAssetRouteProps,
@@ -35,23 +44,11 @@ export async function GET(
   }
 
   if (template.storage?.masterKey) {
-    try {
-      const object = await createStorageProvider().getObject?.({
-        key: template.storage.masterKey,
-      });
-
-      if (object?.body) {
-        return new Response(bytesToBody(object.body), {
-          headers: {
-            ...PUBLIC_CACHE_HEADERS,
-            "Content-Type": object.contentType ?? template.master.contentType,
-            "X-Momenta-Asset-Source": getStorageProviderName(),
-          },
-        });
-      }
-    } catch (error) {
-      console.warn(`Falling back to bundled master for ${template.id}.`, error);
-    }
+    return getStorageImageResponse({
+      key: template.storage.masterKey,
+      fallbackKey: template.storage.previewKey,
+      contentType: template.master.contentType,
+    });
   }
 
   if (!template.master.path) {
@@ -62,7 +59,7 @@ export async function GET(
 
   return new Response(bytesToBody(fallback), {
     headers: {
-      ...PUBLIC_CACHE_HEADERS,
+      ...getAssetCacheHeaders(),
       "Content-Type": template.master.contentType,
       "X-Momenta-Asset-Source": "bundled",
     },

@@ -2,12 +2,16 @@ import type { StorageProvider } from "@/services/ports/storage-provider";
 import { R2StorageProvider } from "@/infrastructure/r2/r2-storage-provider";
 import { LocalFileStorageProvider } from "./local-file-storage-provider";
 
+function isUsableEnvValue(value?: string) {
+  return Boolean(value && value.trim() !== "" && value !== "[SENSITIVE]");
+}
+
 function hasR2Environment() {
   return Boolean(
-    process.env.R2_ACCOUNT_ID &&
-      process.env.R2_ACCESS_KEY_ID &&
-      process.env.R2_SECRET_ACCESS_KEY &&
-      process.env.R2_BUCKET_NAME,
+    isUsableEnvValue(process.env.R2_ACCOUNT_ID) &&
+      isUsableEnvValue(process.env.R2_ACCESS_KEY_ID) &&
+      isUsableEnvValue(process.env.R2_SECRET_ACCESS_KEY) &&
+      isUsableEnvValue(process.env.R2_BUCKET_NAME),
   );
 }
 
@@ -18,7 +22,9 @@ export function createStorageProvider(): StorageProvider {
       accessKeyId: process.env.R2_ACCESS_KEY_ID!,
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
       bucketName: process.env.R2_BUCKET_NAME!,
-      endpoint: process.env.R2_ENDPOINT,
+      endpoint: isUsableEnvValue(process.env.R2_ENDPOINT)
+        ? process.env.R2_ENDPOINT
+        : undefined,
     });
   }
 

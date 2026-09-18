@@ -56,9 +56,7 @@ export type TextElement = {
   id: string;
   label: string;
   text: string;
-  source?: "manual" | "ocr" | "diff";
-  confidence?: number;
-  needsReview?: boolean;
+  source?: "manual";
   x: number;
   y: number;
   width: number;

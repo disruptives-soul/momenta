@@ -30,8 +30,10 @@ import {
   type PersonalizationTextScenes,
   type PersonalizationValues,
 } from "../types/personalization-draft";
-import type { TextElement } from "@/features/rendering/templates/template-types";
-import type { InvitationTemplate } from "@/features/rendering/templates/template-types";
+import type {
+  InvitationTemplate,
+  TextElement,
+} from "@/features/rendering/templates/template-types";
 import type { PrototypeProduct } from "@/features/products/data/mock-products";
 
 const PersonalizationEditor = dynamic(
@@ -77,20 +79,13 @@ function getTemplateDefaults(template: InvitationTemplate): PersonalizationValue
   );
 }
 
-function isLegacyAutoPlaceholderText(element: TextElement) {
-  return (
-    element.id.startsWith("auto-text-") &&
-    /^Texto(?: detectado)?\s*\d+$/i.test(element.text.trim())
-  );
-}
-
 function getDraftSceneForTemplate(
   draft: PersonalizationDraft,
   template: InvitationTemplate,
 ) {
   const existingScene = draft.scenes[template.id];
 
-  if (!existingScene || existingScene.some(isLegacyAutoPlaceholderText)) {
+  if (!existingScene) {
     return createTextSceneFromTemplate(template);
   }
 
