@@ -76,6 +76,9 @@ export type IllustratorTemplateExport = {
     widthMm?: number;
     heightMm?: number;
   };
+  exportProfile?: {
+    masterPpi?: number;
+  };
   textElements?: IllustratorTextElement[];
   warnings?: string[];
 };
@@ -106,6 +109,17 @@ export function getIllustratorFontFamilies(source: IllustratorTemplateExport) {
         .filter((family): family is string => Boolean(family)),
     ),
   );
+}
+
+export function getIllustratorMasterPpi(
+  source: IllustratorTemplateExport,
+  fallbackPpi: number,
+) {
+  const masterPpi = source.exportProfile?.masterPpi;
+
+  return typeof masterPpi === "number" && Number.isFinite(masterPpi) && masterPpi > 0
+    ? masterPpi
+    : fallbackPpi;
 }
 
 function ptToPx(valuePt: number, ppi: number) {

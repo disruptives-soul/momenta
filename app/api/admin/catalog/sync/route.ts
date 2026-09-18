@@ -6,6 +6,7 @@ import {
 } from "@/infrastructure/storage/storage-provider-factory";
 import {
   getIllustratorFontFamilies,
+  getIllustratorMasterPpi,
   importIllustratorTemplate,
   isIllustratorTemplateExport,
 } from "@/features/rendering/templates/illustrator-template-importer";
@@ -1039,18 +1040,23 @@ export async function POST(request: Request) {
         );
       }
 
+      const designMasterPpi = getIllustratorMasterPpi(
+        illustratorSource.json,
+        payload.printProfile.designMasterPpi,
+      );
+      payload = {
+        ...payload,
+        printProfile: {
+          ...payload.printProfile,
+          designMasterPpi,
+        },
+      };
       const importedTextElements = importIllustratorTemplate(
         illustratorSource.json,
         {
-          widthPx: mmToPixels(
-            payload.product.widthMm,
-            payload.printProfile.designMasterPpi,
-          ),
-          heightPx: mmToPixels(
-            payload.product.heightMm,
-            payload.printProfile.designMasterPpi,
-          ),
-          designMasterPpi: payload.printProfile.designMasterPpi,
+          widthPx: mmToPixels(payload.product.widthMm, designMasterPpi),
+          heightPx: mmToPixels(payload.product.heightMm, designMasterPpi),
+          designMasterPpi,
           defaultFontFamily: payload.template.defaultFont,
           defaultFill: payload.template.defaultFill,
         },
