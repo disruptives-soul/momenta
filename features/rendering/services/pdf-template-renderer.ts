@@ -421,6 +421,7 @@ function drawPathTextElement(
   }));
   const glyphs = layoutPathText({
     text: value,
+    align: element.align,
     centerX: element.x,
     centerY: element.y,
     path: element.path,
@@ -468,6 +469,7 @@ function drawArcText(
   }));
   const glyphs = layoutPathText({
     text: value,
+    align: field.align,
     centerX: copy.x,
     centerY: copy.y,
     path: {

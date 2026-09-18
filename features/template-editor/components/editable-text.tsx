@@ -250,6 +250,7 @@ export function EditableText({
     };
     const glyphs = layoutPathText({
       text: element.text,
+      align: element.align,
       centerX: element.x * scale.scaleX,
       centerY: element.y * scale.scaleY,
       path: getScaledPath(element.path),
@@ -328,6 +329,13 @@ export function EditableText({
           onTap={() => !disabled && onSelect(element.id)}
           visible={!isEditing}
         >
+          <Rect
+            fill="transparent"
+            height={scaledPathBox.height}
+            width={scaledPathBox.width}
+            x={scaledPathBox.x}
+            y={scaledPathBox.y}
+          />
           {glyphs.map((glyph, index) => (
             <Text
               fill={element.fill}

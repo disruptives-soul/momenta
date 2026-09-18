@@ -35,9 +35,11 @@ type PersonalizationCanvasProps = {
   template: InvitationTemplate;
   scene: TextElement[];
   selectedElementIds: string[];
+  editingElementId?: string | null;
   hoveredElementId?: string | null;
   zoom: number;
   previewMode: boolean;
+  onEditingElementIdChange?: (elementId: string | null) => void;
   onSelectedElementIdsChange: (elementIds: string[]) => void;
   onUpdateTextElement: (elementId: string, patch: Partial<TextElement>) => void;
   onUpdateTextElements: (
@@ -244,9 +246,11 @@ export function PersonalizationCanvas({
   template,
   scene,
   selectedElementIds,
+  editingElementId: controlledEditingElementId,
   hoveredElementId = null,
   zoom,
   previewMode,
+  onEditingElementIdChange,
   onSelectedElementIdsChange,
   onUpdateTextElement,
   onUpdateTextElements,
@@ -264,7 +268,13 @@ export function PersonalizationCanvas({
     getTemplateMasterAssetSrc(template),
     getTemplatePreviewAssetSrc(template),
   );
-  const [editingElementId, setEditingElementId] = useState<string | null>(null);
+  const [localEditingElementId, setLocalEditingElementId] = useState<
+    string | null
+  >(null);
+  const editingElementId =
+    controlledEditingElementId !== undefined
+      ? controlledEditingElementId
+      : localEditingElementId;
   const [alignmentGuides, setAlignmentGuides] = useState<
     CanvasAlignmentGuide[]
   >([]);
@@ -280,6 +290,15 @@ export function PersonalizationCanvas({
   const editingElement =
     scene.find((element) => element.id === editingElementId) ?? null;
   const masterSafeArea = useMemo(() => getTemplateSafeArea(template), [template]);
+
+  function setEditingElementId(elementId: string | null) {
+    if (controlledEditingElementId !== undefined) {
+      onEditingElementIdChange?.(elementId);
+      return;
+    }
+
+    setLocalEditingElementId(elementId);
+  }
 
   useEffect(() => {
     stageRef.current?.batchDraw();

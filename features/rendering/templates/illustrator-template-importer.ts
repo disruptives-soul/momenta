@@ -58,6 +58,9 @@ type IllustratorTextElement = {
       radiusXPt?: number;
       radiusYPt?: number;
     };
+    startTValue?: number;
+    endTValue?: number;
+    winding?: string;
   };
   opacity?: number;
   zOrderPosition?: number;
@@ -167,6 +170,39 @@ function getElementId(element: IllustratorTextElement, index: number) {
   return element.id?.trim() || element.sourceName?.trim() || `text-${index + 1}`;
 }
 
+function getPathAngleFromTValue(tValue: number, winding: string | undefined) {
+  const direction = winding === "clockwise" ? 1 : -1;
+
+  return tValue * 90 * direction;
+}
+
+function getPathAngles(element: IllustratorTextElement) {
+  const startTValue = element.pathText?.startTValue;
+  const endTValue = element.pathText?.endTValue;
+
+  if (
+    typeof startTValue === "number" &&
+    typeof endTValue === "number" &&
+    startTValue !== endTValue
+  ) {
+    return {
+      startAngle: getPathAngleFromTValue(
+        startTValue,
+        element.pathText?.winding,
+      ),
+      endAngle: getPathAngleFromTValue(
+        endTValue,
+        element.pathText?.winding,
+      ),
+    };
+  }
+
+  return {
+    startAngle: 205,
+    endAngle: 335,
+  };
+}
+
 function getPathGeometry(
   element: IllustratorTextElement,
   options: ImportIllustratorTemplateOptions,
@@ -201,12 +237,14 @@ function getPathGeometry(
     return null;
   }
 
+  const { startAngle, endAngle } = getPathAngles(element);
+
   if (shape.kind === "circle" && Math.abs(radiusX - radiusY) <= 1) {
     return {
       type: "circle",
       radius: Math.round((radiusX + radiusY) / 2),
-      startAngle: 205,
-      endAngle: 335,
+      startAngle,
+      endAngle,
     };
   }
 
@@ -215,8 +253,8 @@ function getPathGeometry(
       type: "ellipse",
       radiusX: Math.round(radiusX),
       radiusY: Math.round(radiusY),
-      startAngle: 205,
-      endAngle: 335,
+      startAngle,
+      endAngle,
     };
   }
 

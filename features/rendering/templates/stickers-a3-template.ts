@@ -106,8 +106,8 @@ export const stickersA3Template: InvitationTemplate = {
       letterSpacing: 7,
       arc: {
         radius: 365,
-        startAngle: 205,
-        endAngle: 335,
+        startAngle: 25,
+        endAngle: 155,
       },
     },
     thanksText: {
@@ -127,8 +127,8 @@ export const stickersA3Template: InvitationTemplate = {
       letterSpacing: 5,
       arc: {
         radius: 350,
-        startAngle: 205,
-        endAngle: 335,
+        startAngle: 25,
+        endAngle: 155,
       },
     },
     leafText: {
@@ -148,8 +148,8 @@ export const stickersA3Template: InvitationTemplate = {
       letterSpacing: 4,
       arc: {
         radius: 330,
-        startAngle: 205,
-        endAngle: 335,
+        startAngle: 25,
+        endAngle: 155,
       },
     },
   },

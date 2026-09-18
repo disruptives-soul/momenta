@@ -221,6 +221,7 @@ export function TemplatePreview({
               if (element.kind === "pathText") {
                 const glyphs = layoutPathText({
                   text: element.text,
+                  align: element.align,
                   centerX: element.x,
                   centerY: element.y,
                   path: element.path,

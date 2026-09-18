@@ -14,6 +14,7 @@ export type PathTextGlyphLayout = {
 
 export type PathTextLayoutInput = {
   text: string;
+  align?: "left" | "center" | "right" | "justify";
   centerX: number;
   centerY: number;
   path: TextPathGeometry;
@@ -122,7 +123,17 @@ export function layoutPathText(input: PathTextLayoutInput) {
     glyphWidths.reduce((total, width) => total + width, 0) +
     letterSpacing * Math.max(characters.length - 1, 0);
   const textAngle = (textWidth / pathRadius) * (180 / Math.PI);
+  const align = input.align ?? "center";
   let cursorAngle = (startAngle + endAngle) / 2 - (direction * textAngle) / 2;
+
+  if (align === "left" || align === "justify") {
+    cursorAngle = startAngle;
+  }
+
+  if (align === "right") {
+    cursorAngle = endAngle - direction * textAngle;
+  }
+
   const elementRotation = input.rotation ?? 0;
 
   return characters.map((character, index): PathTextGlyphLayout => {

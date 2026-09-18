@@ -142,6 +142,7 @@ export function PersonalizationEditor({
   const [selectedElementIds, setSelectedElementIds] = useState<string[]>(
     scene[0] ? [scene[0].id] : [],
   );
+  const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
   const [zoomIndex, setZoomIndex] = useState(3);
   const [clipboardElements, setClipboardElements] = useState<TextElement[]>([]);
@@ -311,6 +312,11 @@ export function PersonalizationEditor({
     window.queueMicrotask(() => {
       setSelectedElementIds((currentIds) =>
         currentIds.filter((id) => scene.some((element) => element.id === id)),
+      );
+      setEditingElementId((currentId) =>
+        currentId && scene.some((element) => element.id === currentId)
+          ? currentId
+          : null,
       );
     });
   }, [scene]);
@@ -604,6 +610,10 @@ export function PersonalizationEditor({
                   onClick={(event) =>
                     toggleLayerSelection(element.id, event.shiftKey)
                   }
+                  onDoubleClick={() => {
+                    setSelectedElementIds([element.id]);
+                    setEditingElementId(element.id);
+                  }}
                   onMouseEnter={() => setHoveredElementId(element.id)}
                   onMouseLeave={() => setHoveredElementId(null)}
                   title="Click para seleccionar este texto en el canvas"
@@ -637,7 +647,9 @@ export function PersonalizationEditor({
 
         <main className="relative grid min-h-0">
           <PersonalizationCanvas
+            editingElementId={editingElementId}
             hoveredElementId={hoveredElementId}
+            onEditingElementIdChange={setEditingElementId}
             onSelectedElementIdsChange={setSelectedElementIds}
             onUpdateTextElement={onUpdateTextElement}
             onUpdateTextElements={onUpdateTextElements}
