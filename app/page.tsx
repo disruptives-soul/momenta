@@ -10,6 +10,7 @@ import { listPublicCollections } from "@/features/collections/services/list-publ
 
 export default async function HomePage() {
   const collections = await listPublicCollections();
+  const featuredProduct = collections.flatMap((collection) => collection.products)[0];
 
   return (
     <main>
@@ -41,7 +42,9 @@ export default async function HomePage() {
                 <Link href="/catalog">Explorar catalogo</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="/products/invitation">Ver invitacion destacada</Link>
+                <Link href={featuredProduct ? `/products/${featuredProduct.slug}` : "/catalog"}>
+                  Ver producto destacado
+                </Link>
               </Button>
             </div>
           </div>

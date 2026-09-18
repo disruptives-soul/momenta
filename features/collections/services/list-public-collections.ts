@@ -6,6 +6,13 @@ export async function listPublicCollections(input?: { limit?: number }) {
     listHeadlessCollections(),
     staticCollectionRepository.listPublished(),
   ]);
+
+  if (headlessCollections.length > 0) {
+    return input?.limit
+      ? headlessCollections.slice(0, input.limit)
+      : headlessCollections;
+  }
+
   const collections = Array.from(
     new Map(
       [...staticCollections, ...headlessCollections].map((collection) => [

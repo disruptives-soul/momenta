@@ -29,6 +29,11 @@ export async function listCatalogProducts() {
     listHeadlessProducts({ includeUnpublished: true }),
     listHeadlessProducts(),
   ]);
+
+  if (allHeadlessProducts.length > 0) {
+    return publicHeadlessProducts;
+  }
+
   const reservedHeadlessSlugs = new Set(
     allHeadlessProducts.map((product) => product.slug),
   );
@@ -40,12 +45,19 @@ export async function listCatalogProducts() {
 }
 
 export async function getCatalogProductBySlug(productSlug: string) {
-  const headlessProduct = await getHeadlessProductBySlug(productSlug, {
-    includeUnpublished: true,
-  });
+  const [allHeadlessProducts, headlessProduct] = await Promise.all([
+    listHeadlessProducts({ includeUnpublished: true }),
+    getHeadlessProductBySlug(productSlug, {
+      includeUnpublished: true,
+    }),
+  ]);
 
   if (headlessProduct) {
     return isPublicProduct(headlessProduct) ? headlessProduct : null;
+  }
+
+  if (allHeadlessProducts.length > 0) {
+    return null;
   }
 
   return getStaticProductBySlug(productSlug);
