@@ -325,15 +325,13 @@ function toInvitationTemplate(source: HeadlessTemplateObject): InvitationTemplat
 }
 
 export async function getRenderingTemplateAsync(templateId: string) {
-  const staticTemplate = getRenderingTemplate(templateId);
-
-  if (staticTemplate) {
-    return staticTemplate;
-  }
-
   const source =
     (await loadTemplateFromSupabase(templateId)) ??
     (await loadTemplateFromStorage(templateId));
 
-  return source ? toInvitationTemplate(source) : null;
+  if (source) {
+    return toInvitationTemplate(source);
+  }
+
+  return getRenderingTemplate(templateId);
 }
