@@ -17,6 +17,21 @@ export type TemplateTextArc = {
   endAngle: number;
 };
 
+export type TextPathGeometry =
+  | {
+      type: "circle";
+      radius: number;
+      startAngle: number;
+      endAngle: number;
+    }
+  | {
+      type: "ellipse";
+      radiusX: number;
+      radiusY: number;
+      startAngle: number;
+      endAngle: number;
+    };
+
 export type TemplateTextControls = {
   content: boolean;
   move: boolean;
@@ -54,12 +69,14 @@ export type TemplateTextField = {
   letterSpacing?: number;
   rotation?: number;
   arc?: TemplateTextArc;
+  path?: TextPathGeometry;
 };
 
-export type TextElement = {
+export type BaseTextElement = {
   id: string;
   label: string;
   text: string;
+  kind?: "text";
   source?: "manual" | "illustrator";
   sourceTextKind?: "point" | "area";
   needsReview?: boolean;
@@ -81,6 +98,14 @@ export type TextElement = {
   letterSpacing?: number;
   rotation?: number;
 };
+
+export type PathTextElement = Omit<BaseTextElement, "kind"> & {
+  kind: "pathText";
+  path: TextPathGeometry;
+  pathLocked?: boolean;
+};
+
+export type TextElement = BaseTextElement | PathTextElement;
 
 export type TextSceneConstraints = {
   allowedFonts: Array<{

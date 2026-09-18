@@ -29,6 +29,7 @@ import {
   getTemplateFieldValue,
 } from "../templates/template-text";
 import { applyFieldOverride } from "../templates/template-overrides";
+import { layoutPathText } from "../templates/path-text-layout";
 import {
   getPdfPageSize,
   pxFontSizeToPt,
@@ -398,6 +399,52 @@ function getAlignedElementTextX(
   return anchorX - lineWidth / 2;
 }
 
+function drawPathTextElement(
+  page: PDFPage,
+  value: string,
+  element: TextElement,
+  font: PDFFont,
+  template: RuntimeInvitationTemplate,
+  pageWidthPt: number,
+  pageHeightPt: number,
+) {
+  if (element.kind !== "pathText") {
+    return;
+  }
+
+  const fontSize = pxFontSizeToPt(element.fontSize, template, pageHeightPt);
+  const glyphMetrics = Array.from(value).map((character) => ({
+    character,
+    width:
+      (font.widthOfTextAtSize(character, fontSize) / pageWidthPt) *
+      template.widthPx,
+  }));
+  const glyphs = layoutPathText({
+    text: value,
+    centerX: element.x,
+    centerY: element.y,
+    path: element.path,
+    fontSize: element.fontSize,
+    letterSpacing: element.letterSpacing ?? 0,
+    rotation: element.rotation ?? 0,
+    glyphMetrics,
+  });
+
+  glyphs.forEach((glyph) => {
+    const characterWidth = font.widthOfTextAtSize(glyph.character, fontSize);
+
+    page.drawText(glyph.character, {
+      x: pxToPdfX(glyph.x, template, pageWidthPt) - characterWidth / 2,
+      y: pxToPdfY(glyph.y, template, pageHeightPt) - fontSize / 3,
+      size: fontSize,
+      font,
+      color: hexToRgb(element.fill),
+      opacity: element.opacity ?? 1,
+      rotate: degrees(-glyph.rotation),
+    });
+  });
+}
+
 function drawArcText(
   page: PDFPage,
   value: string,
@@ -413,45 +460,39 @@ function drawArcText(
     return;
   }
 
-  const characters = Array.from(value);
-  const radiusPt = pxToPdfWidth(field.arc.radius, template, pageWidthPt);
-  const centerX = pxToPdfX(copy.x, template, pageWidthPt);
-  const centerY = pxToPdfY(copy.y, template, pageHeightPt);
-  const startAngle = field.arc.startAngle;
-  const endAngle = field.arc.endAngle;
-  const span = endAngle - startAngle;
-  const direction = span >= 0 ? 1 : -1;
-  const letterSpacingPt = pxToPdfWidth(field.letterSpacing ?? 0, template, pageWidthPt);
-  const characterWidths = characters.map((character) =>
-    font.widthOfTextAtSize(character, fontSize),
-  );
-  const textWidth =
-    characterWidths.reduce((total, width) => total + width, 0) +
-    letterSpacingPt * Math.max(characters.length - 1, 0);
-  const textAngle = (textWidth / radiusPt) * (180 / Math.PI);
-  let cursorAngle = (startAngle + endAngle) / 2 - (direction * textAngle) / 2;
+  const glyphMetrics = Array.from(value).map((character) => ({
+    character,
+    width:
+      (font.widthOfTextAtSize(character, fontSize) / pageWidthPt) *
+      template.widthPx,
+  }));
+  const glyphs = layoutPathText({
+    text: value,
+    centerX: copy.x,
+    centerY: copy.y,
+    path: {
+      type: "circle",
+      radius: field.arc.radius,
+      startAngle: field.arc.startAngle,
+      endAngle: field.arc.endAngle,
+    },
+    fontSize: field.fontSize,
+    letterSpacing: field.letterSpacing ?? 0,
+    rotation: field.rotation ?? 0,
+    glyphMetrics,
+  });
 
-  characters.forEach((character, index) => {
-    const halfCharacterAngle =
-      (characterWidths[index] / 2 / radiusPt) * (180 / Math.PI);
-    const letterSpacingAngle = (letterSpacingPt / radiusPt) * (180 / Math.PI);
-    const angle = cursorAngle + direction * halfCharacterAngle;
-    const rotatedAngle = angle + (field.rotation ?? 0);
-    const radians = (rotatedAngle * Math.PI) / 180;
-    const characterWidth = font.widthOfTextAtSize(character, fontSize);
-    const x = centerX + radiusPt * Math.cos(radians);
-    const y = centerY - radiusPt * Math.sin(radians);
+  glyphs.forEach((glyph) => {
+    const characterWidth = font.widthOfTextAtSize(glyph.character, fontSize);
 
-    cursorAngle += direction * (halfCharacterAngle * 2 + letterSpacingAngle);
-
-    page.drawText(character, {
-      x: x - characterWidth / 2,
-      y: y - fontSize / 3,
+    page.drawText(glyph.character, {
+      x: pxToPdfX(glyph.x, template, pageWidthPt) - characterWidth / 2,
+      y: pxToPdfY(glyph.y, template, pageHeightPt) - fontSize / 3,
       size: fontSize,
       font,
       color: hexToRgb(field.fill),
       opacity: field.opacity ?? 1,
-      rotate: degrees(direction >= 0 ? -rotatedAngle - 90 : -rotatedAngle + 90),
+      rotate: degrees(-glyph.rotation),
     });
   });
 }
@@ -498,6 +539,19 @@ export async function renderPersonalizedInvitationPdf(
         customFontCache,
         element,
       );
+      if (element.kind === "pathText") {
+        drawPathTextElement(
+          page,
+          value,
+          element,
+          font,
+          template,
+          widthPt,
+          heightPt,
+        );
+        continue;
+      }
+
       const maxWidthPt = pxToPdfWidth(element.width, template, widthPt);
       const fontSize = fitElementFontSize(
         { ...element, text: value },

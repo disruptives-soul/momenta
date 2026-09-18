@@ -75,35 +75,59 @@ export function createTextSceneFromTemplate(
   template: InvitationTemplate,
 ): TextElement[] {
   return Object.entries(template.fields)
-    .filter(([, field]) => !field.arc)
     .flatMap(([fieldKey, field]) => {
       const copies = field.copies ?? [{ x: field.x, y: field.y }];
 
-      return copies.map((copy, copyIndex) => ({
-        id: copies.length > 1 ? `${fieldKey}-${copyIndex + 1}` : fieldKey,
-        label: copies.length > 1 ? `${field.label} ${copyIndex + 1}` : field.label,
-        text: field.defaultValue,
-        source: field.source,
-        sourceTextKind: field.sourceTextKind,
-        needsReview: field.needsReview,
-        sourceMeta: field.sourceMeta,
-        x: copy.x,
-        y: copy.y,
-        width: field.width,
-        fontFamily: field.fontFamily,
-        pdfFont: field.pdfFont,
-        fontAsset: field.fontAsset,
-        fontWeight: field.fontWeight,
-        fontSize: field.fontSize,
-        minFontSize: field.minFontSize,
-        fill: field.fill,
-        opacity: field.opacity ?? 1,
-        align: field.align,
-        maxLines: field.maxLines,
-        lineHeight: field.lineHeight ?? 1.15,
-        letterSpacing: field.letterSpacing ?? 0,
-        rotation: field.rotation ?? 0,
-      }));
+      return copies.map((copy, copyIndex): TextElement => {
+        const baseElement = {
+          id: copies.length > 1 ? `${fieldKey}-${copyIndex + 1}` : fieldKey,
+          label: copies.length > 1 ? `${field.label} ${copyIndex + 1}` : field.label,
+          text: field.defaultValue,
+          source: field.source,
+          sourceTextKind: field.sourceTextKind,
+          needsReview: field.needsReview,
+          sourceMeta: field.sourceMeta,
+          x: copy.x,
+          y: copy.y,
+          width: field.width,
+          fontFamily: field.fontFamily,
+          pdfFont: field.pdfFont,
+          fontAsset: field.fontAsset,
+          fontWeight: field.fontWeight,
+          fontSize: field.fontSize,
+          minFontSize: field.minFontSize,
+          fill: field.fill,
+          opacity: field.opacity ?? 1,
+          align: field.align,
+          maxLines: field.maxLines,
+          lineHeight: field.lineHeight ?? 1.15,
+          letterSpacing: field.letterSpacing ?? 0,
+          rotation: field.rotation ?? 0,
+        };
+        const path = field.path ??
+          (field.arc
+            ? {
+                type: "circle" as const,
+                radius: field.arc.radius,
+                startAngle: field.arc.startAngle,
+                endAngle: field.arc.endAngle,
+              }
+            : undefined);
+
+        if (path) {
+          return {
+            ...baseElement,
+            kind: "pathText",
+            path,
+            pathLocked: true,
+          };
+        }
+
+        return {
+          ...baseElement,
+          kind: "text",
+        };
+      });
     });
 }
 

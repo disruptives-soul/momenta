@@ -109,6 +109,8 @@ function getTemplateSignature(template: InvitationTemplate) {
           lineHeight: field.lineHeight,
           letterSpacing: field.letterSpacing,
           rotation: field.rotation,
+          path: field.path,
+          arc: field.arc,
         },
       ]),
     ),
@@ -156,6 +158,16 @@ function sceneMatchesTemplate(
   const sceneIds = new Set(scene.map((element) => element.id));
 
   return fieldIds.every((fieldId) => sceneIds.has(fieldId));
+}
+
+function mergeTextElementPatch(
+  element: TextElement,
+  patch: Partial<TextElement>,
+): TextElement {
+  return {
+    ...element,
+    ...patch,
+  } as TextElement;
 }
 
 function getDraftSceneForTemplate(
@@ -323,7 +335,9 @@ export function PersonalizationFlow({
   ) {
     setTextScene(
       activeScene.map((element) =>
-        element.id === elementId ? { ...element, ...patch } : element,
+        element.id === elementId
+          ? mergeTextElementPatch(element, patch)
+          : element,
       ),
     );
   }
@@ -339,7 +353,7 @@ export function PersonalizationFlow({
       activeScene.map((element) => {
         const patch = patchesById.get(element.id);
 
-        return patch ? { ...element, ...patch } : element;
+        return patch ? mergeTextElementPatch(element, patch) : element;
       }),
     );
   }

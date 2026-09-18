@@ -2,8 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import type Konva from "konva";
-import { Rect, Text, Transformer } from "react-konva";
-import type { TextElement } from "@/features/rendering/templates/template-types";
+import { Group, Rect, Text, Transformer } from "react-konva";
+import type {
+  TextElement,
+  TextPathGeometry,
+} from "@/features/rendering/templates/template-types";
+import { layoutPathText } from "@/features/rendering/templates/path-text-layout";
 import { getScaledFontSize, type TemplateScale } from "../services/template-layout";
 import {
   getSmartCanvasGuides,
@@ -219,6 +223,131 @@ export function EditableText({
     if (container) {
       container.style.cursor = cursor;
     }
+  }
+
+  function getScaledPath(path: TextPathGeometry): TextPathGeometry {
+    if (path.type === "circle") {
+      return {
+        ...path,
+        radius: path.radius * scale.scaleX,
+      };
+    }
+
+    return {
+      ...path,
+      radiusX: path.radiusX * scale.scaleX,
+      radiusY: path.radiusY * scale.scaleY,
+    };
+  }
+
+  if (element.kind === "pathText") {
+    const pathBox = getTextVisualBox(element);
+    const scaledPathBox = {
+      x: pathBox.x * scale.scaleX,
+      y: pathBox.y * scale.scaleY,
+      width: pathBox.width * scale.scaleX,
+      height: pathBox.height * scale.scaleY,
+    };
+    const glyphs = layoutPathText({
+      text: element.text,
+      centerX: element.x * scale.scaleX,
+      centerY: element.y * scale.scaleY,
+      path: getScaledPath(element.path),
+      fontSize: scaledFontSize,
+      letterSpacing: scaledLetterSpacing,
+      rotation: element.rotation ?? 0,
+    });
+
+    return (
+      <>
+        {isHoverVisible || isActive || isEditing ? (
+          <Rect
+            dash={isEditing ? undefined : [7, 5]}
+            height={scaledPathBox.height}
+            listening={false}
+            stroke={isEditing ? "#0f766e" : "#ec4899"}
+            strokeWidth={isEditing ? 2 : 1.5}
+            width={scaledPathBox.width}
+            x={scaledPathBox.x}
+            y={scaledPathBox.y}
+          />
+        ) : null}
+        <Group
+          dragBoundFunc={(pos) => {
+            const box = {
+              ...scaledPathBox,
+              x: scaledPathBox.x + pos.x,
+              y: scaledPathBox.y + pos.y,
+            };
+            const smartGuides = getSmartCanvasGuides(
+              box,
+              canvasSize,
+              safeArea,
+              guideBoxes,
+            );
+            const snappedBox = {
+              ...box,
+              x: box.x + smartGuides.dx,
+              y: box.y + smartGuides.dy,
+            };
+            const shift = getSafeAreaShift(snappedBox, safeArea);
+
+            onGuidesChange(smartGuides.guides);
+
+            return {
+              x: pos.x + smartGuides.dx + shift.dx,
+              y: pos.y + smartGuides.dy + shift.dy,
+            };
+          }}
+          draggable={!disabled}
+          listening={!disabled}
+          onClick={(event) =>
+            !disabled && onSelect(element.id, event.evt.shiftKey)
+          }
+          onDblClick={() => !disabled && onStartEditing(element)}
+          onDragEnd={(event) => {
+            const node = event.target;
+
+            onGuidesChange([]);
+            onChange(element.id, {
+              x: element.x + node.x() / scale.scaleX,
+              y: element.y + node.y() / scale.scaleY,
+            });
+            node.position({ x: 0, y: 0 });
+          }}
+          onMouseEnter={(event) => {
+            if (disabled) return;
+            setPointerCursor(event.target, "move");
+            onHoverChange(element.id);
+          }}
+          onMouseLeave={(event) => {
+            if (disabled) return;
+            setPointerCursor(event.target, "default");
+            onHoverChange(null);
+          }}
+          onTap={() => !disabled && onSelect(element.id)}
+          visible={!isEditing}
+        >
+          {glyphs.map((glyph, index) => (
+            <Text
+              fill={element.fill}
+              fontFamily={element.fontFamily}
+              fontSize={scaledFontSize}
+              fontStyle={(element.fontWeight ?? 500) >= 700 ? "bold" : "normal"}
+              key={`${element.id}-${index}-${glyph.character}`}
+              listening={false}
+              opacity={element.opacity ?? 1}
+              offsetX={scaledFontSize * 0.27}
+              offsetY={scaledFontSize * 0.36}
+              rotation={glyph.rotation}
+              text={glyph.character}
+              x={glyph.x}
+              y={glyph.y}
+            />
+          ))}
+        </Group>
+      </>
+    );
   }
 
   return (

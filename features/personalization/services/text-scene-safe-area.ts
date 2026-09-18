@@ -22,6 +22,10 @@ function degreesToRadians(value: number) {
 }
 
 function getAlignedTextLeft(element: TextElement) {
+  if (element.kind === "pathText") {
+    return getTextVisualBox(element).x;
+  }
+
   const width = getTextElementBoxWidth(element);
 
   if (element.align === "right") {
@@ -50,6 +54,10 @@ function getApproximateTextLineWidth(value: string, element: TextElement) {
 }
 
 export function getTextElementLines(element: TextElement) {
+  if (element.kind === "pathText") {
+    return [element.text];
+  }
+
   const paragraphs = element.text.split(/\r?\n/);
 
   const lines: string[] = [];
@@ -88,10 +96,18 @@ export function getTextElementLines(element: TextElement) {
 }
 
 export function getTextElementBoxWidth(element: TextElement) {
+  if (element.kind === "pathText") {
+    return getTextVisualBox(element).width;
+  }
+
   return Math.max(minimumInteractionWidth, element.width);
 }
 
 export function getTextElementBoxHeight(element: TextElement) {
+  if (element.kind === "pathText") {
+    return getTextVisualBox(element).height;
+  }
+
   const lineHeight = element.lineHeight ?? 1.15;
   const lines = getTextElementLines(element);
 
@@ -99,6 +115,28 @@ export function getTextElementBoxHeight(element: TextElement) {
 }
 
 export function getTextVisualBox(element: TextElement): TemplateSafeArea {
+  if (element.kind === "pathText") {
+    const padding = element.fontSize;
+
+    if (element.path.type === "circle") {
+      const size = element.path.radius * 2 + padding * 2;
+
+      return {
+        x: element.x - size / 2,
+        y: element.y - size / 2,
+        width: size,
+        height: size,
+      };
+    }
+
+    return {
+      x: element.x - element.path.radiusX - padding,
+      y: element.y - element.path.radiusY - padding,
+      width: element.path.radiusX * 2 + padding * 2,
+      height: element.path.radiusY * 2 + padding * 2,
+    };
+  }
+
   const height = getTextElementBoxHeight(element);
 
   return {

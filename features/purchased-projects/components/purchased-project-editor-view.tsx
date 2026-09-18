@@ -54,6 +54,16 @@ type SceneHistory = {
   future: TextElement[][];
 };
 
+function mergeTextElementPatch(
+  element: TextElement,
+  patch: Partial<TextElement>,
+): TextElement {
+  return {
+    ...element,
+    ...patch,
+  } as TextElement;
+}
+
 export function PurchasedProjectEditorView({
   projectId,
 }: PurchasedProjectEditorViewProps) {
@@ -170,7 +180,9 @@ export function PurchasedProjectEditorView({
   function updateTextElement(elementId: string, patch: Partial<TextElement>) {
     setTextScene(
       scene.map((element) =>
-        element.id === elementId ? { ...element, ...patch } : element,
+        element.id === elementId
+          ? mergeTextElementPatch(element, patch)
+          : element,
       ),
     );
   }
@@ -186,7 +198,7 @@ export function PurchasedProjectEditorView({
       scene.map((element) => {
         const patch = patchesById.get(element.id);
 
-        return patch ? { ...element, ...patch } : element;
+        return patch ? mergeTextElementPatch(element, patch) : element;
       }),
     );
   }

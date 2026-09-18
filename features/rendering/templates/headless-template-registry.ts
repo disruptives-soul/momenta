@@ -2,9 +2,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createStorageProvider } from "@/infrastructure/storage/storage-provider-factory";
 import type {
+  BaseTextElement,
   InvitationTemplate,
+  PathTextElement,
   TemplateTextField,
-  TextElement,
 } from "./template-types";
 import { defaultTextColors, defaultTextFonts } from "./text-scene";
 import { getRenderingTemplate } from "./template-registry";
@@ -12,6 +13,13 @@ import {
   getBundledGoogleFontAsset,
   getBundledGoogleFontFamily,
 } from "./google-font-assets";
+
+type HeadlessTextElement = Partial<BaseTextElement> &
+  Partial<PathTextElement> & {
+    id: string;
+    label?: string;
+    text?: string;
+  };
 
 type HeadlessTemplateObject = {
   id: string;
@@ -26,7 +34,7 @@ type HeadlessTemplateObject = {
   allowedFonts?: string[];
   defaultFont?: string;
   defaultFill?: string;
-  textElements: Array<Partial<TextElement> & { id: string; label?: string; text?: string }>;
+  textElements: HeadlessTextElement[];
   assets: {
     masterKey: string;
     previewKey: string;
@@ -203,6 +211,7 @@ function normalizeField(
     sourceTextKind: element.sourceTextKind,
     needsReview: element.needsReview,
     sourceMeta: element.sourceMeta,
+    path: element.path,
     editable: true,
     x,
     y,

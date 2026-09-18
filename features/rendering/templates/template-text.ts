@@ -5,6 +5,7 @@ import type {
   TemplateTextCopy,
   TemplateTextField,
 } from "./template-types";
+import { layoutPathText } from "./path-text-layout";
 
 export function getTemplateFieldValue(
   fieldKey: string,
@@ -70,33 +71,18 @@ export function getArcTextCharacters(
   fontSize: number,
   letterSpacing = 0,
 ) {
-  const characters = Array.from(value);
-  const span = arc.endAngle - arc.startAngle;
-  const direction = span >= 0 ? 1 : -1;
-  const characterWidths = characters.map((character) =>
-    character.trim() ? fontSize * 0.54 : fontSize * 0.32,
-  );
-  const textWidth =
-    characterWidths.reduce((total, width) => total + width, 0) +
-    letterSpacing * Math.max(characters.length - 1, 0);
-  const textAngle = (textWidth / arc.radius) * (180 / Math.PI);
-  let cursorAngle = (arc.startAngle + arc.endAngle) / 2 - (direction * textAngle) / 2;
-
-  return characters.map((character, index) => {
-    const halfCharacterAngle =
-      (characterWidths[index] / 2 / arc.radius) * (180 / Math.PI);
-    const letterSpacingAngle = (letterSpacing / arc.radius) * (180 / Math.PI);
-    const angle = cursorAngle + direction * halfCharacterAngle;
-    const point = polarToSvgPoint(copy, arc.radius, angle);
-
-    cursorAngle += direction * (halfCharacterAngle * 2 + letterSpacingAngle);
-
-    return {
-      character,
-      x: point.x,
-      y: point.y,
-      rotation: direction >= 0 ? angle + 90 : angle - 90,
-    };
+  return layoutPathText({
+    text: value,
+    centerX: copy.x,
+    centerY: copy.y,
+    path: {
+      type: "circle",
+      radius: arc.radius,
+      startAngle: arc.startAngle,
+      endAngle: arc.endAngle,
+    },
+    fontSize,
+    letterSpacing,
   });
 }
 

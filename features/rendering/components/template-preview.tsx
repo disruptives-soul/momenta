@@ -8,6 +8,7 @@ import type {
 import { getTextElementLines } from "@/features/personalization/services/text-scene-safe-area";
 import { cn } from "@/lib/utils";
 import type { InvitationTemplate, TextElement } from "../templates/template-types";
+import { layoutPathText } from "../templates/path-text-layout";
 import {
   getTemplateMasterAssetSrc,
   getTemplatePreviewAssetSrc,
@@ -217,6 +218,40 @@ export function TemplatePreview({
         </defs>
         {scene
           ? scene.map((element) => {
+              if (element.kind === "pathText") {
+                const glyphs = layoutPathText({
+                  text: element.text,
+                  centerX: element.x,
+                  centerY: element.y,
+                  path: element.path,
+                  fontSize: element.fontSize,
+                  letterSpacing: element.letterSpacing ?? 0,
+                  rotation: element.rotation ?? 0,
+                });
+
+                return (
+                  <g key={element.id}>
+                    {glyphs.map((glyph, index) => (
+                      <text
+                        dominantBaseline="middle"
+                        fill={element.fill}
+                        fontFamily={element.fontFamily}
+                        fontSize={element.fontSize}
+                        fontWeight={element.fontWeight ?? 500}
+                        key={`${element.id}-${index}-${glyph.character}`}
+                        opacity={element.opacity ?? 1}
+                        textAnchor="middle"
+                        transform={`rotate(${glyph.rotation} ${glyph.x} ${glyph.y})`}
+                        x={glyph.x}
+                        y={glyph.y}
+                      >
+                        {glyph.character}
+                      </text>
+                    ))}
+                  </g>
+                );
+              }
+
               const lineHeight = element.lineHeight ?? 1.15;
               const lines = getTextElementLines(element);
 
