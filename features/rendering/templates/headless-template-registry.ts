@@ -4,7 +4,7 @@ import { createStorageProvider } from "@/infrastructure/storage/storage-provider
 import type {
   BaseTextElement,
   InvitationTemplate,
-  PathTextElement,
+  TemplateTextArc,
   TemplateTextField,
 } from "./template-types";
 import { defaultTextColors, defaultTextFonts } from "./text-scene";
@@ -13,13 +13,17 @@ import {
   getBundledGoogleFontAsset,
   getBundledGoogleFontFamily,
 } from "./google-font-assets";
+import { normalizeTextPathGeometry } from "./path-text-layout";
 
-type HeadlessTextElement = Partial<BaseTextElement> &
-  Partial<PathTextElement> & {
-    id: string;
-    label?: string;
-    text?: string;
-  };
+type HeadlessTextElement = Partial<BaseTextElement> & {
+  id: string;
+  label?: string;
+  text?: string;
+  kind?: string;
+  arc?: unknown;
+  path?: unknown;
+  pathLocked?: boolean;
+};
 
 type HeadlessTemplateObject = {
   id: string;
@@ -190,6 +194,32 @@ async function findTemplateFile(root: string, templateId: string): Promise<strin
   return null;
 }
 
+function normalizeTextArcGeometry(value: unknown): TemplateTextArc | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const arc = value as Record<string, unknown>;
+
+  if (
+    typeof arc.radius === "number" &&
+    Number.isFinite(arc.radius) &&
+    arc.radius > 0 &&
+    typeof arc.startAngle === "number" &&
+    Number.isFinite(arc.startAngle) &&
+    typeof arc.endAngle === "number" &&
+    Number.isFinite(arc.endAngle)
+  ) {
+    return {
+      radius: arc.radius,
+      startAngle: arc.startAngle,
+      endAngle: arc.endAngle,
+    };
+  }
+
+  return undefined;
+}
+
 function normalizeField(
   element: HeadlessTemplateObject["textElements"][number],
   index: number,
@@ -203,15 +233,21 @@ function normalizeField(
     element.fontSize ?? Math.max(72, Math.round(heightPx * 0.035));
   const fontSize = rawFontSize;
   const defaultValue = element.text ?? "";
+  const arc = normalizeTextArcGeometry(element.arc);
+  const path = normalizeTextPathGeometry(element.path);
+  const hasUnsupportedPath = Boolean(
+    (element.path && !path) || (element.arc && !arc),
+  );
 
   return {
     label: element.label ?? `Texto ${index + 1}`,
     defaultValue,
     source: element.source,
     sourceTextKind: element.sourceTextKind,
-    needsReview: element.needsReview,
+    needsReview: Boolean(element.needsReview || hasUnsupportedPath),
     sourceMeta: element.sourceMeta,
-    path: element.path,
+    path,
+    arc,
     editable: true,
     x,
     y,

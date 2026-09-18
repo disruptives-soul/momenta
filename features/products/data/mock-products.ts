@@ -173,7 +173,7 @@ export const spaceStickersPackProduct: PrototypeProduct = {
   priceLabel: "ARS 6.00",
   widthMm: 297,
   heightMm: 420,
-  templateId: "tpl_space_stickers_pack_v1",
+  templateId: "sunday-in-bloom-stickers-a3-v1",
   assets: getSpaceProductAssets("stickers-a3"),
   variables: birthdayTextVariables,
   outputFormats: ["png", "pdf"],

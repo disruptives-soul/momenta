@@ -1,10 +1,14 @@
-import type { TextElement, TemplateTextAlign } from "./template-types";
+import type {
+  TextElement,
+  TemplateTextAlign,
+  TextPathGeometry,
+} from "./template-types";
 import {
   getBundledGoogleFontAsset,
   getBundledGoogleFontFamilyStack,
 } from "./google-font-assets";
 
-type IllustratorTextKind = "point" | "area";
+type IllustratorTextKind = "point" | "area" | "path";
 
 type IllustratorGeometry = {
   xRatio?: number;
@@ -45,6 +49,16 @@ type IllustratorTextElement = {
   text?: string;
   geometry?: IllustratorGeometry;
   typography?: IllustratorTypography;
+  pathText?: {
+    kind?: string;
+    approximateShape?: {
+      kind?: string;
+      centerXPt?: number;
+      centerYPt?: number;
+      radiusXPt?: number;
+      radiusYPt?: number;
+    };
+  };
   opacity?: number;
   zOrderPosition?: number;
   mixedFormatting?: boolean;
@@ -153,6 +167,62 @@ function getElementId(element: IllustratorTextElement, index: number) {
   return element.id?.trim() || element.sourceName?.trim() || `text-${index + 1}`;
 }
 
+function getPathGeometry(
+  element: IllustratorTextElement,
+  options: ImportIllustratorTemplateOptions,
+): TextPathGeometry | null {
+  const shape = element.pathText?.approximateShape;
+
+  if (!shape) {
+    return null;
+  }
+
+  const centerX = typeof shape.centerXPt === "number"
+    ? ptToPx(shape.centerXPt, options.designMasterPpi)
+    : null;
+  const centerY = typeof shape.centerYPt === "number"
+    ? ptToPx(shape.centerYPt, options.designMasterPpi)
+    : null;
+  const radiusX = typeof shape.radiusXPt === "number"
+    ? ptToPx(shape.radiusXPt, options.designMasterPpi)
+    : null;
+  const radiusY = typeof shape.radiusYPt === "number"
+    ? ptToPx(shape.radiusYPt, options.designMasterPpi)
+    : null;
+
+  if (
+    centerX === null ||
+    centerY === null ||
+    radiusX === null ||
+    radiusY === null ||
+    radiusX <= 0 ||
+    radiusY <= 0
+  ) {
+    return null;
+  }
+
+  if (shape.kind === "circle" && Math.abs(radiusX - radiusY) <= 1) {
+    return {
+      type: "circle",
+      radius: Math.round((radiusX + radiusY) / 2),
+      startAngle: 205,
+      endAngle: 335,
+    };
+  }
+
+  if (shape.kind === "ellipse" || shape.kind === "circle") {
+    return {
+      type: "ellipse",
+      radiusX: Math.round(radiusX),
+      radiusY: Math.round(radiusY),
+      startAngle: 205,
+      endAngle: 335,
+    };
+  }
+
+  return null;
+}
+
 export function importIllustratorTemplate(
   source: IllustratorTemplateExport,
   options: ImportIllustratorTemplateOptions,
@@ -184,21 +254,39 @@ export function importIllustratorTemplate(
       const top = geometry.yRatio * options.heightPx;
       const x = (geometry.xRatio + geometry.widthRatio / 2) * options.widthPx;
       const y = top + fontSize * 0.82;
-      const kind = element.kind === "area" ? "area" : "point";
+      const pathGeometry = element.kind === "path"
+        ? getPathGeometry(element, options)
+        : null;
+      const kind: Exclude<IllustratorTextKind, "path"> = element.kind === "area"
+        ? "area"
+        : element.kind === "path"
+          ? "point"
+          : "point";
       const fontAsset = getBundledGoogleFontAsset(typography?.fontFamily);
-
-      return {
+      const baseElement = {
         id: getElementId(element, index),
         label: element.sourceName ?? element.id ?? `Texto ${index + 1}`,
         text: element.text ?? "",
-        source: "illustrator",
+        source: "illustrator" as const,
         sourceTextKind: kind,
-        needsReview: Boolean(element.needsReview || element.mixedFormatting),
-        x: Math.round(x),
-        y: Math.round(y),
+        needsReview: Boolean(
+          element.needsReview ||
+          element.mixedFormatting ||
+          (element.kind === "path" && !pathGeometry),
+        ),
+        x: Math.round(
+          pathGeometry && typeof element.pathText?.approximateShape?.centerXPt === "number"
+            ? ptToPx(element.pathText.approximateShape.centerXPt, options.designMasterPpi)
+            : x,
+        ),
+        y: Math.round(
+          pathGeometry && typeof element.pathText?.approximateShape?.centerYPt === "number"
+            ? ptToPx(element.pathText.approximateShape.centerYPt, options.designMasterPpi)
+            : y,
+        ),
         width: Math.round(width),
         fontFamily: getFontFamily(typography, fallbackFont),
-        pdfFont: "helvetica",
+        pdfFont: "helvetica" as const,
         fontAsset,
         fontWeight: getFontWeight(typography?.fontStyle),
         fontSize: Math.round(fontSize),
@@ -215,8 +303,20 @@ export function importIllustratorTemplate(
           typography,
           mixedFormatting: element.mixedFormatting ?? false,
           zOrderPosition: element.zOrderPosition,
+          pathText: element.pathText,
         },
       };
+
+      if (pathGeometry) {
+        return {
+          ...baseElement,
+          kind: "pathText",
+          path: pathGeometry,
+          pathLocked: true,
+        };
+      }
+
+      return baseElement;
     })
     .filter((element): element is TextElement => Boolean(element));
 }

@@ -27,6 +27,57 @@ function degreesToRadians(value: number) {
   return (value * Math.PI) / 180;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function normalizeTextPathGeometry(
+  value: unknown,
+): TextPathGeometry | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  if (
+    value.type === "circle" &&
+    isFiniteNumber(value.radius) &&
+    value.radius > 0 &&
+    isFiniteNumber(value.startAngle) &&
+    isFiniteNumber(value.endAngle)
+  ) {
+    return {
+      type: "circle",
+      radius: value.radius,
+      startAngle: value.startAngle,
+      endAngle: value.endAngle,
+    };
+  }
+
+  if (
+    value.type === "ellipse" &&
+    isFiniteNumber(value.radiusX) &&
+    value.radiusX > 0 &&
+    isFiniteNumber(value.radiusY) &&
+    value.radiusY > 0 &&
+    isFiniteNumber(value.startAngle) &&
+    isFiniteNumber(value.endAngle)
+  ) {
+    return {
+      type: "ellipse",
+      radiusX: value.radiusX,
+      radiusY: value.radiusY,
+      startAngle: value.startAngle,
+      endAngle: value.endAngle,
+    };
+  }
+
+  return undefined;
+}
+
 function getFallbackGlyphWidth(character: string, fontSize: number) {
   return character.trim() ? fontSize * 0.54 : fontSize * 0.32;
 }
