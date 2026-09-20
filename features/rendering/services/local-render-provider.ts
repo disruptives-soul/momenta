@@ -15,6 +15,7 @@ import {
   wrapTemplateText,
 } from "../templates/template-text";
 import { applyFieldOverride } from "../templates/template-overrides";
+import { getTextElementLines } from "@/features/personalization/services/text-scene-safe-area";
 
 type LocalRenderProviderOptions = {
   artworkHref?: string;
@@ -39,56 +40,38 @@ function toPersonalizationValues(
   return { ...variables };
 }
 
-function wrapSceneText(value: string, element: TextElement) {
-  const fontSize = element.fontSize;
-  const maxCharactersPerLine = Math.max(
-    8,
-    Math.floor(element.width / (fontSize * 0.54)),
-  );
-  const lines: string[] = [];
-
-  for (const paragraph of value.split(/\r?\n/)) {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean);
-    let currentLine = "";
-
-    if (words.length === 0) {
-      lines.push("");
-      continue;
-    }
-
-    for (const word of words) {
-      const nextLine = currentLine ? `${currentLine} ${word}` : word;
-
-      if (!currentLine || nextLine.length <= maxCharactersPerLine) {
-        currentLine = nextLine;
-        continue;
-      }
-
-      lines.push(currentLine);
-      currentLine = word;
-    }
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
+function getSvgTextX(
+  source: Pick<TextElement, "align" | "sourceTextKind" | "width" | "x">,
+) {
+  if (source.sourceTextKind !== "area") {
+    return source.x;
   }
 
-  return lines.length > 0 ? lines : [value.trim()];
+  if (source.align === "right") {
+    return source.x + source.width;
+  }
+
+  if (source.align === "center") {
+    return source.x + source.width / 2;
+  }
+
+  return source.x;
 }
 
 function renderSceneTextElement(element: TextElement) {
   const lineHeight = element.lineHeight ?? 1.15;
-  const lines = wrapSceneText(element.text, element);
+  const lines = getTextElementLines(element);
+  const textX = getSvgTextX(element);
   const tspans = lines
     .map((line, index) => {
       const dy = index === 0 ? 0 : element.fontSize * lineHeight;
 
-      return `<tspan x="${element.x}" dy="${dy}">${escapeXml(line)}</tspan>`;
+      return `<tspan x="${textX}" dy="${dy}">${escapeXml(line)}</tspan>`;
     })
     .join("");
 
   return [
-    `<text x="${element.x}" y="${element.y}"`,
+    `<text x="${textX}" y="${element.y}"`,
     ` fill="${element.fill}"`,
     ` font-family="${escapeXml(element.fontFamily)}"`,
     ` font-size="${element.fontSize}"`,
@@ -96,7 +79,7 @@ function renderSceneTextElement(element: TextElement) {
     ` opacity="${element.opacity ?? 1}"`,
     element.letterSpacing ? ` letter-spacing="${element.letterSpacing}"` : "",
     element.rotation
-      ? ` transform="rotate(${element.rotation} ${element.x} ${element.y})"`
+      ? ` transform="rotate(${element.rotation} ${textX} ${element.y})"`
       : "",
     ` text-anchor="${getTextAnchor(element.align)}">`,
     tspans,
@@ -165,13 +148,15 @@ export class LocalRenderProvider implements RenderProvider {
             const tspans = lines
               .map((line, index) => {
                 const dy = index === 0 ? 0 : fontSize * lineHeight;
+                const textX = getSvgTextX({ ...field, x: copy.x });
 
-                return `<tspan x="${copy.x}" dy="${dy}">${escapeXml(line)}</tspan>`;
+                return `<tspan x="${textX}" dy="${dy}">${escapeXml(line)}</tspan>`;
               })
               .join("");
+            const textX = getSvgTextX({ ...field, x: copy.x });
 
             return [
-              `<text x="${copy.x}" y="${copy.y}"`,
+              `<text x="${textX}" y="${copy.y}"`,
               ` fill="${field.fill}"`,
               ` font-family="${escapeXml(field.fontFamily)}"`,
               ` font-size="${fontSize}"`,
@@ -179,7 +164,7 @@ export class LocalRenderProvider implements RenderProvider {
               ` opacity="${field.opacity ?? 1}"`,
               field.letterSpacing ? ` letter-spacing="${field.letterSpacing}"` : "",
               field.rotation
-                ? ` transform="rotate(${field.rotation} ${copy.x} ${copy.y})"`
+                ? ` transform="rotate(${field.rotation} ${textX} ${copy.y})"`
                 : "",
               ` text-anchor="${getTextAnchor(field.align)}">`,
               tspans,

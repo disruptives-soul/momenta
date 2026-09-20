@@ -252,6 +252,7 @@ function normalizeField(
     x,
     y,
     width: element.width ?? Math.min(widthPx * 0.72, 1800),
+    height: element.height,
     fontFamily: element.fontFamily ?? fallbackFont.value,
     pdfFont: element.pdfFont ?? fallbackFont.pdfFont,
     fontAsset:

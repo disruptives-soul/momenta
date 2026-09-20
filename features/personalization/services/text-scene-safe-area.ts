@@ -26,6 +26,10 @@ function getAlignedTextLeft(element: TextElement) {
     return getTextVisualBox(element).x;
   }
 
+  if (element.sourceTextKind === "area") {
+    return element.x;
+  }
+
   const width = getTextElementBoxWidth(element);
 
   if (element.align === "right") {
@@ -58,16 +62,25 @@ export function getTextElementLines(element: TextElement) {
     return [element.text];
   }
 
-  const paragraphs = element.text.split(/\r?\n/);
+  if (element.sourceTextKind === "point" || element.maxLines <= 1) {
+    return [element.text.replace(/\r?\n/g, " ")];
+  }
 
+  const maxLines = Math.max(1, element.maxLines);
+  const paragraphs = element.text.split(/\r?\n/);
   const lines: string[] = [];
   const maxWidth = Math.max(minimumInteractionWidth, element.width);
 
   for (const paragraph of paragraphs) {
+    if (lines.length >= maxLines) {
+      break;
+    }
+
     const words = paragraph.trim().split(/\s+/).filter(Boolean);
 
     if (words.length === 0) {
       lines.push("");
+      continue;
     }
 
     let currentLine = "";
@@ -84,11 +97,17 @@ export function getTextElementLines(element: TextElement) {
       }
 
       lines.push(currentLine);
+      if (lines.length >= maxLines) {
+        return lines;
+      }
       currentLine = word;
     }
 
     if (currentLine || words.length > 0) {
       lines.push(currentLine);
+      if (lines.length >= maxLines) {
+        return lines;
+      }
     }
   }
 
@@ -109,6 +128,16 @@ export function getTextElementBoxHeight(element: TextElement) {
   }
 
   const lineHeight = element.lineHeight ?? 1.15;
+
+  if (
+    element.sourceTextKind === "area" &&
+    typeof element.height === "number" &&
+    Number.isFinite(element.height) &&
+    element.height > 0
+  ) {
+    return Math.max(element.fontSize * lineHeight, element.height);
+  }
+
   const lines = getTextElementLines(element);
 
   return Math.max(element.fontSize * lineHeight, lines.length * element.fontSize * lineHeight);

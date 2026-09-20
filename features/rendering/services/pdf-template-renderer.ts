@@ -308,7 +308,21 @@ function getAlignedTextX(
   const letterSpacingPt = pxToPdfWidth(field.letterSpacing ?? 0, template, pageWidthPt);
   const lineWidth = getTrackedTextWidth(line, font, fontSize, letterSpacingPt);
 
-  if (field.align === "left") {
+  if (field.sourceTextKind === "area") {
+    const maxWidthPt = pxToPdfWidth(field.width, template, pageWidthPt);
+
+    if (field.align === "right") {
+      return anchorX + maxWidthPt - lineWidth;
+    }
+
+    if (field.align === "center") {
+      return anchorX + (maxWidthPt - lineWidth) / 2;
+    }
+
+    return anchorX;
+  }
+
+  if (field.align === "left" || field.align === "justify") {
     return anchorX;
   }
 
@@ -337,9 +351,18 @@ function wrapPdfElementText(
   maxWidthPt: number,
   letterSpacingPt = 0,
 ) {
+  if (element.sourceTextKind === "point" || element.maxLines <= 1) {
+    return [element.text.trim()];
+  }
+
   const lines: string[] = [];
+  const maxLines = Math.max(1, element.maxLines);
 
   for (const paragraph of element.text.split(/\r?\n/)) {
+    if (lines.length >= maxLines) {
+      break;
+    }
+
     const words = paragraph.trim().split(/\s+/).filter(Boolean);
     let currentLine = "";
 
@@ -361,11 +384,17 @@ function wrapPdfElementText(
       }
 
       lines.push(currentLine);
+      if (lines.length >= maxLines) {
+        return lines;
+      }
       currentLine = word;
     }
 
     if (currentLine) {
       lines.push(currentLine);
+      if (lines.length >= maxLines) {
+        return lines;
+      }
     }
   }
 
@@ -388,7 +417,21 @@ function getAlignedElementTextX(
   );
   const lineWidth = getTrackedTextWidth(line, font, fontSize, letterSpacingPt);
 
-  if (element.align === "left") {
+  if (element.sourceTextKind === "area") {
+    const maxWidthPt = pxToPdfWidth(element.width, template, pageWidthPt);
+
+    if (element.align === "right") {
+      return anchorX + maxWidthPt - lineWidth;
+    }
+
+    if (element.align === "center") {
+      return anchorX + (maxWidthPt - lineWidth) / 2;
+    }
+
+    return anchorX;
+  }
+
+  if (element.align === "left" || element.align === "justify") {
     return anchorX;
   }
 

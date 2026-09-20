@@ -54,6 +54,7 @@ export type TemplateTextField = {
   x: number;
   y: number;
   width: number;
+  height?: number;
   copies?: TemplateTextCopy[];
   fontFamily: string;
   pdfFont?: TemplatePdfFont;
@@ -84,6 +85,7 @@ export type BaseTextElement = {
   x: number;
   y: number;
   width: number;
+  height?: number;
   fontFamily: string;
   pdfFont?: TemplatePdfFont;
   fontAsset?: TemplateFontAsset;

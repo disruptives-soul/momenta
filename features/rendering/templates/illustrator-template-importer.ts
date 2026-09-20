@@ -303,8 +303,10 @@ export function importIllustratorTemplate(
 
       const fontSize = ptToPx(fontSizePt, options.designMasterPpi);
       const width = Math.max(24, geometry.widthRatio * options.widthPx);
+      const height = Math.max(fontSize, geometry.heightRatio * options.heightPx);
+      const left = geometry.xRatio * options.widthPx;
       const top = geometry.yRatio * options.heightPx;
-      const x = (geometry.xRatio + geometry.widthRatio / 2) * options.widthPx;
+      const centerX = left + width / 2;
       const y = top + fontSize * 0.82;
       const pathGeometry = element.kind === "path"
         ? getPathGeometry(element, options)
@@ -315,6 +317,10 @@ export function importIllustratorTemplate(
           ? "point"
           : "point";
       const fontAsset = getBundledGoogleFontAsset(typography?.fontFamily);
+      const lineHeight = getLineHeight(typography);
+      const maxLines = kind === "area"
+        ? Math.max(1, Math.floor(height / Math.max(fontSize * lineHeight, 1)))
+        : 1;
       const baseElement = {
         id: getElementId(element, index),
         label: element.sourceName ?? element.id ?? `Texto ${index + 1}`,
@@ -329,7 +335,9 @@ export function importIllustratorTemplate(
         x: Math.round(
           pathGeometry && typeof element.pathText?.approximateShape?.centerXPt === "number"
             ? ptToPx(element.pathText.approximateShape.centerXPt, options.designMasterPpi)
-            : x,
+            : kind === "area"
+              ? left
+              : centerX,
         ),
         y: Math.round(
           pathGeometry && typeof element.pathText?.approximateShape?.centerYPt === "number"
@@ -337,6 +345,7 @@ export function importIllustratorTemplate(
             : y,
         ),
         width: Math.round(width),
+        height: Math.round(height),
         fontFamily: getFontFamily(typography, fallbackFont),
         pdfFont: "helvetica" as const,
         fontAsset,
@@ -346,8 +355,8 @@ export function importIllustratorTemplate(
         fill: getFill(typography, fallbackFill),
         opacity: typeof element.opacity === "number" ? element.opacity / 100 : 1,
         align: normalizeAlign(typography?.alignment),
-        maxLines: kind === "area" ? 6 : 1,
-        lineHeight: getLineHeight(typography),
+        maxLines,
+        lineHeight,
         letterSpacing: trackingToPx(typography?.tracking, fontSize),
         rotation: geometry.rotationDeg ?? 0,
         sourceMeta: {

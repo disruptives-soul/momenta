@@ -7,6 +7,8 @@ import {
   AlignLeft,
   AlignRight,
   ArrowLeft,
+  Bold,
+  ChevronDown,
   ChevronRight,
   Copy,
   Minus,
@@ -123,6 +125,16 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function getFontLabel(fontFamily: string) {
+  return (
+    fontFamily
+      .split(",")[0]
+      ?.replaceAll("\"", "")
+      .replaceAll("'", "")
+      .trim() || fontFamily
+  );
+}
+
 export function PersonalizationEditor({
   exitHref,
   productName,
@@ -146,6 +158,7 @@ export function PersonalizationEditor({
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
   const [zoomIndex, setZoomIndex] = useState(3);
   const [clipboardElements, setClipboardElements] = useState<TextElement[]>([]);
+  const [isPositionPanelOpen, setIsPositionPanelOpen] = useState(false);
   const zoom = zoomLevels[zoomIndex];
   const selectedElements = scene.filter((element) =>
     selectedElementIds.includes(element.id),
@@ -165,6 +178,21 @@ export function PersonalizationEditor({
   const maxFontSizePt = Math.round(
     fontPxToPt(constraints.maxFontSize, template),
   );
+  const editorFonts = selectedElement &&
+    !constraints.allowedFonts.some(
+      (font) => font.value === selectedElement.fontFamily,
+    )
+    ? [
+        {
+          label: getFontLabel(selectedElement.fontFamily),
+          value: selectedElement.fontFamily,
+          pdfFont: selectedElement.pdfFont ?? "helvetica",
+          fontAsset: selectedElement.fontAsset,
+        },
+        ...constraints.allowedFonts,
+      ]
+    : constraints.allowedFonts;
+  const selectedFontValue = selectedElement?.fontFamily ?? "";
 
   function updateSelectedElements(patch: Partial<TextElement>) {
     if (activeSelectedElementIds.length === 0) return;
@@ -176,12 +204,32 @@ export function PersonalizationEditor({
     );
   }
 
+  function updateSelectedFont(fontFamily: string) {
+    const font = editorFonts.find((item) => item.value === fontFamily);
+
+    if (!font) {
+      return;
+    }
+
+    updateSelectedElements({
+      fontFamily: font.value,
+      pdfFont: font.pdfFont,
+      fontAsset: font.fontAsset,
+    });
+  }
+
   function updateSelectedFontSizePt(nextFontSizePt: number) {
     updateSelectedElements({
       fontSize: fontPtToPx(
         clampNumber(nextFontSizePt, minFontSizePt, maxFontSizePt),
         template,
       ),
+    });
+  }
+
+  function toggleSelectedBold() {
+    updateSelectedElements({
+      fontWeight: (selectedElement?.fontWeight ?? 400) >= 700 ? 400 : 700,
     });
   }
 
@@ -387,7 +435,7 @@ export function PersonalizationEditor({
   });
 
   return (
-    <section className="grid h-screen min-h-[720px] grid-rows-[4.25rem_4.75rem_minmax(0,1fr)_2.5rem] overflow-hidden bg-[#edf1f5]">
+    <section className="grid h-screen min-h-[720px] grid-rows-[4.25rem_auto_minmax(0,1fr)_2.5rem] overflow-hidden bg-[#edf1f5]">
       <header className="flex items-center justify-between gap-4 border-b border-border bg-white px-5">
         <div className="flex min-w-0 items-center gap-4">
           <Button asChild aria-label="Volver al producto" size="sm" variant="ghost">
@@ -418,7 +466,7 @@ export function PersonalizationEditor({
         </div>
       </header>
 
-      <div className="grid border-b border-border bg-white lg:grid-cols-[24rem_minmax(0,1fr)]">
+      <div className="grid min-h-[4.75rem] border-b border-border bg-white lg:grid-cols-[24rem_minmax(0,1fr)]">
         <div className="hidden border-r border-border px-5 py-3 lg:block">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -434,25 +482,40 @@ export function PersonalizationEditor({
           </div>
         </div>
 
-        <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 px-4 py-3">
           {selectedElement ? (
             <>
-              <div className="hidden min-w-0 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary md:block">
+              <div className="hidden shrink-0 whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary md:block">
                 {selectedElements.length > 1
                   ? `${selectedElements.length} textos`
                   : `Editando: ${selectedElement.label}`}
               </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <div className="flex items-center rounded-md border border-border bg-background">
-                  <Button
-                    aria-label="Reducir tamano"
-                    onClick={() => updateSelectedFontSizePt(selectedFontSizePt - 1)}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
+              <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-2 py-1 shadow-[0_12px_28px_rgb(37_31_26_/_0.08)]">
+                <label className="flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold">
+                  <select
+                    aria-label="Tipografia"
+                    className="h-full max-w-40 bg-transparent font-semibold outline-none"
+                    onChange={(event) => updateSelectedFont(event.target.value)}
+                    value={selectedFontValue}
                   >
-                    <Minus />
-                  </Button>
+                    {editorFonts.map((font) => (
+                      <option key={font.value} value={font.value}>
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                </label>
+
+                <div className="flex h-9 items-center rounded-md border border-border bg-background">
+                  <button
+                    aria-label="Reducir tamano"
+                    className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    onClick={() => updateSelectedFontSizePt(selectedFontSizePt - 1)}
+                    type="button"
+                  >
+                    <Minus className="size-4" />
+                  </button>
                   <Input
                     aria-label="Tamano de texto en puntos"
                     className="h-9 w-16 border-0 text-center"
@@ -470,18 +533,32 @@ export function PersonalizationEditor({
                     value={selectedFontSizePt}
                   />
                   <span className="pr-1 text-xs text-muted-foreground">pt</span>
-                  <Button
+                  <button
                     aria-label="Aumentar tamano"
+                    className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     onClick={() => updateSelectedFontSizePt(selectedFontSizePt + 1)}
-                    size="sm"
                     type="button"
-                    variant="ghost"
                   >
-                    <Plus />
-                  </Button>
+                    <Plus className="size-4" />
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <button
+                  aria-label="Negrita"
+                  className={cn(
+                    "grid size-9 place-items-center rounded-md text-foreground transition hover:bg-muted",
+                    (selectedElement.fontWeight ?? 400) >= 700 &&
+                      "bg-primary text-primary-foreground hover:bg-primary/90",
+                  )}
+                  onClick={toggleSelectedBold}
+                  type="button"
+                >
+                  <Bold className="size-4" />
+                </button>
+
+                <div className="mx-1 h-6 w-px bg-border" />
+
+                <div className="flex h-9 items-center gap-1 rounded-md px-1">
                   {constraints.allowedColors.map((color) => (
                     <button
                       aria-label={`Color ${color}`}
@@ -498,54 +575,93 @@ export function PersonalizationEditor({
                   ))}
                 </div>
 
-                <div className="flex rounded-md border border-border bg-background">
+                <div className="mx-1 h-6 w-px bg-border" />
+
+                <div className="flex h-9 rounded-md border border-border bg-background">
                   {textAlignmentActions.map(({ align, icon: Icon, label }) => (
-                    <Button
+                    <button
                       aria-label={label}
+                      className={cn(
+                        "grid size-9 place-items-center text-muted-foreground transition first:rounded-l-md last:rounded-r-md hover:bg-muted hover:text-foreground",
+                        selectedElement.align === align &&
+                          "bg-primary text-primary-foreground hover:bg-primary/90",
+                      )}
                       key={align}
                       onClick={() => updateSelectedElements({ align })}
-                      size="sm"
                       type="button"
-                      variant={
-                        selectedElement.align === align ? "primary" : "ghost"
-                      }
                     >
-                      <Icon />
-                    </Button>
+                      <Icon className="size-4" />
+                    </button>
                   ))}
                 </div>
 
-                <div className="flex rounded-md border border-border bg-background">
-                  {positionAlignmentActions.map(({ direction, label }) => (
-                    <Button
-                      aria-label={`Alinear ${label}`}
-                      key={direction}
-                      onClick={() => alignSelectedElements(direction)}
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                    >
-                      {label}
-                    </Button>
-                  ))}
+                <div className="relative">
+                  <button
+                    className={cn(
+                      "h-9 rounded-md px-3 text-sm font-semibold text-foreground transition hover:bg-muted",
+                      isPositionPanelOpen && "bg-primary text-primary-foreground hover:bg-primary/90",
+                    )}
+                    onClick={() => setIsPositionPanelOpen((current) => !current)}
+                    type="button"
+                  >
+                    Posicion
+                  </button>
+
+                  {isPositionPanelOpen ? (
+                    <div className="absolute left-0 top-[calc(100%+0.5rem)] z-30 w-[22rem] rounded-md border border-border bg-surface p-3 shadow-[0_18px_40px_rgb(37_31_26_/_0.14)]">
+                      <p className="mb-3 text-sm font-semibold text-foreground">
+                        Alinear a pagina
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {positionAlignmentActions.map(({ direction, label }) => (
+                          <button
+                            aria-label={`Alinear ${label}`}
+                            className="flex h-10 items-center gap-3 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                            key={direction}
+                            onClick={() => {
+                              alignSelectedElements(direction);
+                              setIsPositionPanelOpen(false);
+                            }}
+                            type="button"
+                          >
+                            <span className="grid size-5 place-items-center text-primary">
+                              {direction === "top" || direction === "bottom" ? (
+                                <span className="h-4 w-4 border-b-2 border-t-2 border-current" />
+                              ) : direction === "middle" ? (
+                                <span className="h-4 w-4 border-y-2 border-current" />
+                              ) : direction === "left" || direction === "right" ? (
+                                <span className="h-4 w-4 border-l-2 border-r-2 border-current" />
+                              ) : (
+                                <span className="h-4 w-4 border-x-2 border-current" />
+                              )}
+                            </span>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
-                <Button
+                <div className="mx-1 h-6 w-px bg-border" />
+
+                <button
+                  aria-label="Duplicar"
+                  className="grid size-9 place-items-center rounded-md text-foreground transition hover:bg-muted"
                   onClick={duplicateSelectedElements}
                   type="button"
-                  variant="secondary"
                 >
-                  <Copy />
-                  Duplicar
-                </Button>
-                <Button
+                  <Copy className="size-4" />
+                </button>
+                <button
                   aria-label="Eliminar texto"
+                  className="grid size-9 place-items-center rounded-md text-foreground transition hover:bg-muted"
                   onClick={deleteSelectedElements}
                   type="button"
-                  variant="secondary"
                 >
-                  <Trash2 />
-                </Button>
+                  <Trash2 className="size-4" />
+                </button>
+
               </div>
             </>
           ) : (
@@ -554,7 +670,7 @@ export function PersonalizationEditor({
             </p>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <Button
               aria-label="Deshacer"
               disabled={!canUndo}

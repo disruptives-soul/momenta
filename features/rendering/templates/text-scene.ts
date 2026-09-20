@@ -90,6 +90,7 @@ export function createTextSceneFromTemplate(
           x: copy.x,
           y: copy.y,
           width: field.width,
+          height: field.height,
           fontFamily: field.fontFamily,
           pdfFont: field.pdfFont,
           fontAsset: field.fontAsset,

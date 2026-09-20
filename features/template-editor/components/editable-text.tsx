@@ -130,8 +130,9 @@ export function EditableText({
     const leftPx = node.x() / scale.scaleX;
     const nextScaledFontSize = getScaledFontSize(nextFontSize, scale);
     const yPx = (node.y() + nextScaledFontSize * 0.82) / scale.scaleY;
-    const xPx =
-      element.align === "center"
+    const xPx = element.sourceTextKind === "area"
+      ? leftPx
+      : element.align === "center"
         ? leftPx + widthPx / 2
         : element.align === "right"
           ? leftPx + widthPx
@@ -393,6 +394,7 @@ export function EditableText({
         fontFamily={element.fontFamily}
         fontSize={scaledFontSize}
         fontStyle={(element.fontWeight ?? 500) >= 700 ? "bold" : "normal"}
+        height={element.sourceTextKind === "area" ? scaledHeight : undefined}
         letterSpacing={scaledLetterSpacing}
         lineHeight={lineHeight}
         listening={!disabled}
@@ -422,7 +424,11 @@ export function EditableText({
         text={element.text}
         visible={!isEditing}
         width={scaledWidth}
-        wrap="word"
+        wrap={
+          element.sourceTextKind === "point" || element.maxLines <= 1
+            ? "none"
+            : "word"
+        }
         x={x}
         y={y}
       />

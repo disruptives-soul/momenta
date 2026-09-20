@@ -97,6 +97,7 @@ function getTemplateSignature(template: InvitationTemplate) {
           x: field.x,
           y: field.y,
           width: field.width,
+          height: field.height,
           fontFamily: field.fontFamily,
           pdfFont: field.pdfFont,
           fontAsset: field.fontAsset,
@@ -149,15 +150,35 @@ function sceneMatchesTemplate(
   scene: TextElement[],
   template: InvitationTemplate,
 ) {
-  const fieldIds = Object.keys(template.fields);
+  const templateScene = createTextSceneFromTemplate(template);
+  const fieldIds = templateScene.map((element) => element.id);
 
   if (scene.length !== fieldIds.length) {
     return false;
   }
 
-  const sceneIds = new Set(scene.map((element) => element.id));
+  const sceneById = new Map(scene.map((element) => [element.id, element]));
 
-  return fieldIds.every((fieldId) => sceneIds.has(fieldId));
+  return templateScene.every((templateElement) => {
+    const sceneElement = sceneById.get(templateElement.id);
+
+    return (
+      sceneElement &&
+      sceneElement.kind === templateElement.kind &&
+      sceneElement.sourceTextKind === templateElement.sourceTextKind &&
+      sceneElement.x === templateElement.x &&
+      sceneElement.y === templateElement.y &&
+      sceneElement.width === templateElement.width &&
+      sceneElement.height === templateElement.height &&
+      sceneElement.fontFamily === templateElement.fontFamily &&
+      sceneElement.fontWeight === templateElement.fontWeight &&
+      sceneElement.fontSize === templateElement.fontSize &&
+      sceneElement.letterSpacing === templateElement.letterSpacing &&
+      sceneElement.lineHeight === templateElement.lineHeight &&
+      sceneElement.align === templateElement.align &&
+      sceneElement.rotation === templateElement.rotation
+    );
+  });
 }
 
 function mergeTextElementPatch(

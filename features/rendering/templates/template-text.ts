@@ -16,7 +16,7 @@ export function getTemplateFieldValue(
 }
 
 export function getTextAnchor(align: TemplateTextAlign) {
-  if (align === "left") return "start";
+  if (align === "left" || align === "justify") return "start";
   if (align === "right") return "end";
   return "middle";
 }

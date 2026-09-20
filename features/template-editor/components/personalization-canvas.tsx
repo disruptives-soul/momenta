@@ -318,6 +318,7 @@ export function PersonalizationCanvas({
       color: editingElement.fill,
       fontSize,
       fontWeight: editingElement.fontWeight ?? 500,
+      height: visualBox.height * scale.scaleY,
       letterSpacing: (editingElement.letterSpacing ?? 0) * scale.scaleX,
       left,
       lineHeight: editingElement.lineHeight ?? 1.15,
@@ -562,9 +563,14 @@ export function PersonalizationCanvas({
 
     const textarea = textareaRef.current;
 
+    if (editingElement.sourceTextKind === "area") {
+      textarea.style.height = `${getTextVisualBox(editingElement).height * scale.scaleY}px`;
+      return;
+    }
+
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [editingElement?.text, editingElement]);
+  }, [editingElement?.text, editingElement, scale.scaleY]);
 
   return (
     <div
@@ -754,6 +760,7 @@ export function PersonalizationCanvas({
               fontFamily: editingElement.fontFamily,
               fontSize: editingStyle.fontSize,
               fontWeight: editingStyle.fontWeight,
+              height: editingStyle.height,
               letterSpacing: editingStyle.letterSpacing,
               left: editingStyle.left,
               lineHeight: editingStyle.lineHeight,
@@ -764,9 +771,20 @@ export function PersonalizationCanvas({
                 ? `rotate(${editingStyle.rotation}deg)`
                 : undefined,
               transformOrigin: "top left",
+              whiteSpace:
+                editingElement.sourceTextKind === "point" ||
+                editingElement.maxLines <= 1
+                  ? "pre"
+                  : undefined,
               width: editingStyle.width,
             }}
             value={editingElement.text}
+            wrap={
+              editingElement.sourceTextKind === "point" ||
+              editingElement.maxLines <= 1
+                ? "off"
+                : "soft"
+            }
           />
         ) : null}
       </div>

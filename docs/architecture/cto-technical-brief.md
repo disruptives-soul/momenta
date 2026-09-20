@@ -24,7 +24,7 @@ El alcance actual valida una unica coleccion piloto:
 
 - Coleccion: Space Birthday.
 - Categoria: Cumpleanos infantiles.
-- Producto free: Invitacion esencial.
+- Producto free: Invitacion esencial. 
 - Producto premium: Stickers pack.
 - Precio premium validado: ARS 1.990.
 - Formatos comunicados: PNG y PDF.

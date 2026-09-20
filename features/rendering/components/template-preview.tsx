@@ -145,6 +145,24 @@ function usePreviewFonts(scene?: TextElement[]) {
   }, [fontAssets, fontSignature]);
 }
 
+function getSvgTextX(
+  source: Pick<TextElement, "align" | "sourceTextKind" | "width" | "x">,
+) {
+  if (source.sourceTextKind !== "area") {
+    return source.x;
+  }
+
+  if (source.align === "right") {
+    return source.x + source.width;
+  }
+
+  if (source.align === "center") {
+    return source.x + source.width / 2;
+  }
+
+  return source.x;
+}
+
 export function TemplatePreview({
   values,
   ariaLabel,
@@ -255,6 +273,7 @@ export function TemplatePreview({
 
               const lineHeight = element.lineHeight ?? 1.15;
               const lines = getTextElementLines(element);
+              const textX = getSvgTextX(element);
 
               return (
                 <text
@@ -268,17 +287,17 @@ export function TemplatePreview({
                   textAnchor={getTextAnchor(element.align)}
                   transform={
                     element.rotation
-                      ? `rotate(${element.rotation} ${element.x} ${element.y})`
+                      ? `rotate(${element.rotation} ${textX} ${element.y})`
                       : undefined
                   }
-                  x={element.x}
+                  x={textX}
                   y={element.y}
                 >
                   {lines.map((line, index) => (
                     <tspan
                       dy={index === 0 ? 0 : element.fontSize * lineHeight}
                       key={`${element.id}-${line}-${index}`}
-                      x={element.x}
+                      x={textX}
                     >
                       {line}
                     </tspan>
@@ -330,33 +349,39 @@ export function TemplatePreview({
                   ))}
                 </g>
               ) : (
-                <text
-                  fill={field.fill}
-                  fontFamily={field.fontFamily}
-                  fontSize={fontSize}
-                  fontWeight={getTextWeight(fieldKey, field)}
-                  key={`${fieldKey}-${copyIndex}`}
-                  letterSpacing={field.letterSpacing}
-                  opacity={field.opacity ?? 1}
-                  textAnchor={getTextAnchor(field.align)}
-                  transform={
-                    field.rotation
-                      ? `rotate(${field.rotation} ${copy.x} ${copy.y})`
-                      : undefined
-                  }
-                  x={copy.x}
-                  y={copy.y}
-                >
-                  {lines.map((line, index) => (
-                    <tspan
-                      dy={index === 0 ? 0 : fontSize * lineHeight}
-                      key={`${fieldKey}-${line}-${index}`}
-                      x={copy.x}
+                (() => {
+                  const textX = getSvgTextX({ ...field, x: copy.x });
+
+                  return (
+                    <text
+                      fill={field.fill}
+                      fontFamily={field.fontFamily}
+                      fontSize={fontSize}
+                      fontWeight={getTextWeight(fieldKey, field)}
+                      key={`${fieldKey}-${copyIndex}`}
+                      letterSpacing={field.letterSpacing}
+                      opacity={field.opacity ?? 1}
+                      textAnchor={getTextAnchor(field.align)}
+                      transform={
+                        field.rotation
+                          ? `rotate(${field.rotation} ${textX} ${copy.y})`
+                          : undefined
+                      }
+                      x={textX}
+                      y={copy.y}
                     >
-                      {line}
-                    </tspan>
-                  ))}
-                </text>
+                      {lines.map((line, index) => (
+                        <tspan
+                          dy={index === 0 ? 0 : fontSize * lineHeight}
+                          key={`${fieldKey}-${line}-${index}`}
+                          x={textX}
+                        >
+                          {line}
+                        </tspan>
+                      ))}
+                    </text>
+                  );
+                })()
               )
             ))
           );
