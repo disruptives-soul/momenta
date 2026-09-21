@@ -487,15 +487,15 @@ export function PersonalizationEditor({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 px-4 py-3">
+        <div className="grid min-w-0 items-start gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           {selectedElement ? (
             <>
-              <div className="hidden shrink-0 whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary md:block">
+              <div className="hidden min-w-0 justify-self-start whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary md:block">
                 {selectedElements.length > 1
                   ? `${selectedElements.length} textos`
                   : `Editando: ${selectedElement.label}`}
               </div>
-              <div className="relative flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-2 py-1 shadow-[0_12px_28px_rgb(37_31_26_/_0.08)]">
+              <div className="relative flex w-fit max-w-full flex-wrap items-center justify-center gap-1 justify-self-start rounded-xl border border-border bg-surface px-2 py-1 shadow-[0_12px_28px_rgb(37_31_26_/_0.08)] md:justify-self-center">
                 <div
                   className="relative"
                   onBlur={(event) => {
@@ -719,12 +719,12 @@ export function PersonalizationEditor({
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground md:col-span-2">
               Selecciona un texto para editarlo.
             </p>
           )}
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 justify-self-end">
             <Button
               aria-label="Deshacer"
               disabled={!canUndo}

@@ -37,6 +37,10 @@ type GuideBox = {
   height: number;
 };
 
+const activeGuideStroke = "#0f766e";
+const hoverGuideStroke = "#b24c32";
+const guideStrokeWidth = 2;
+
 let textMeasurementContext: CanvasRenderingContext2D | null = null;
 
 function getTextMeasurementContext() {
@@ -354,11 +358,10 @@ export function EditableText({
       <>
         {isHoverVisible || isActive || isEditing ? (
           <Rect
-            dash={isEditing ? undefined : [7, 5]}
             height={scaledPathBox.height}
             listening={false}
-            stroke={isEditing ? "#0f766e" : "#ec4899"}
-            strokeWidth={isEditing ? 2 : 1.5}
+            stroke={isHoverVisible ? hoverGuideStroke : activeGuideStroke}
+            strokeWidth={guideStrokeWidth}
             width={scaledPathBox.width}
             x={scaledPathBox.x}
             y={scaledPathBox.y}
@@ -453,12 +456,11 @@ export function EditableText({
     <>
       {isHoverVisible ? (
         <Rect
-          dash={[7, 5]}
           height={scaledHeight}
           listening={false}
           rotation={element.rotation ?? 0}
-          stroke="#ec4899"
-          strokeWidth={1.5}
+          stroke={hoverGuideStroke}
+          strokeWidth={guideStrokeWidth}
           width={scaledWidth}
           x={x}
           y={y}
@@ -469,8 +471,8 @@ export function EditableText({
           height={scaledHeight}
           listening={false}
           rotation={element.rotation ?? 0}
-          stroke="#0f766e"
-          strokeWidth={2}
+          stroke={activeGuideStroke}
+          strokeWidth={guideStrokeWidth}
           width={scaledWidth}
           x={x}
           y={y}
@@ -530,10 +532,11 @@ export function EditableText({
         <Transformer
           anchorCornerRadius={4}
           anchorFill="#ffffff"
-          anchorSize={8}
-          anchorStroke="#0f766e"
-          borderDash={[6, 4]}
-          borderStroke="#0f766e"
+          anchorSize={10}
+          anchorStroke={activeGuideStroke}
+          anchorStrokeWidth={2}
+          borderStroke={activeGuideStroke}
+          borderStrokeWidth={guideStrokeWidth}
           boundBoxFunc={(oldBox, newBox) => {
             const minimumFontSize = getScaledFontSize(element.minFontSize, scale);
             const minimumWidth = Math.max(48, minimumFontSize * 1.6);

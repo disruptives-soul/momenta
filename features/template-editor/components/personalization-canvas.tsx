@@ -642,10 +642,9 @@ export function PersonalizationCanvas({
             {!previewMode
               ? alignmentGuides.map((guide) => (
                   <Line
-                    dash={[8, 6]}
                     key={guide.id}
                     listening={false}
-                    opacity={0.8}
+                    opacity={0.95}
                     points={
                       guide.orientation === "vertical"
                         ? [
@@ -662,7 +661,7 @@ export function PersonalizationCanvas({
                           ]
                     }
                     stroke="#0f766e"
-                    strokeWidth={1.5}
+                    strokeWidth={2}
                   />
                 ))
               : null}
@@ -704,13 +703,12 @@ export function PersonalizationCanvas({
               : null}
             {selectionRect ? (
               <Rect
-                dash={[6, 4]}
                 fill="#0f766e"
                 height={selectionRect.height}
                 listening={false}
-                opacity={0.12}
+                opacity={0.16}
                 stroke="#0f766e"
-                strokeWidth={1.5}
+                strokeWidth={2}
                 width={selectionRect.width}
                 x={selectionRect.x}
                 y={selectionRect.y}
