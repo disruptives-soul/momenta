@@ -53,6 +53,8 @@ type CatalogPrintProfilePayload = {
 type CatalogTemplatePayload = {
   id: string;
   status?: string;
+  widthPx?: number;
+  heightPx?: number;
   safeArea: {
     insetMm: number;
   };
@@ -77,6 +79,11 @@ type CatalogSyncPayload = {
   printProfile: CatalogPrintProfilePayload;
   template: CatalogTemplatePayload;
   assets: CatalogAssetsPayload;
+};
+
+type MasterPixelSize = {
+  widthPx: number;
+  heightPx: number;
 };
 
 type CatalogDeletePayload = {
@@ -507,6 +514,8 @@ function getTemplateObject(payload: CatalogSyncPayload, keys: CatalogStorageKeys
     productSlug: payload.product.slug,
     widthMm: payload.product.widthMm,
     heightMm: payload.product.heightMm,
+    widthPx: payload.template.widthPx,
+    heightPx: payload.template.heightPx,
     printProfile: payload.printProfile,
     safeArea: payload.template.safeArea,
     allowedColors: payload.template.allowedColors,
@@ -640,6 +649,27 @@ async function downloadAsset(url: string, fallbackContentType: string) {
   return {
     body: new Uint8Array(await response.arrayBuffer()),
     contentType: response.headers.get("content-type") ?? fallbackContentType,
+  };
+}
+
+async function readImagePixelSize(
+  asset: Awaited<ReturnType<typeof downloadAsset>>,
+): Promise<MasterPixelSize | null> {
+  const { default: sharp } = await import("sharp");
+  const metadata = await sharp(asset.body).metadata();
+
+  if (
+    typeof metadata.width !== "number" ||
+    typeof metadata.height !== "number" ||
+    metadata.width <= 0 ||
+    metadata.height <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    widthPx: metadata.width,
+    heightPx: metadata.height,
   };
 }
 
@@ -988,6 +1018,28 @@ export async function POST(request: Request) {
     let illustratorSource:
       | Awaited<ReturnType<typeof downloadJsonAsset>>
       | null = null;
+    const [master, preview] = await Promise.all([
+      downloadAsset(payload.assets.masterUrl, "image/jpeg"),
+      downloadAsset(payload.assets.previewUrl, "image/webp"),
+    ]);
+    const masterPixelSize = await readImagePixelSize(master).catch((error) => {
+      console.warn(
+        `Could not read master dimensions for ${payload.template.id}; using print profile dimensions.`,
+        error,
+      );
+      return null;
+    });
+
+    if (masterPixelSize) {
+      payload = {
+        ...payload,
+        template: {
+          ...payload.template,
+          widthPx: masterPixelSize.widthPx,
+          heightPx: masterPixelSize.heightPx,
+        },
+      };
+    }
 
     if (payload.template.textElements.length === 0 && templateSourceUrl) {
       illustratorSource = await downloadJsonAsset(templateSourceUrl);
@@ -1054,8 +1106,12 @@ export async function POST(request: Request) {
       const importedTextElements = importIllustratorTemplate(
         illustratorSource.json,
         {
-          widthPx: mmToPixels(payload.product.widthMm, designMasterPpi),
-          heightPx: mmToPixels(payload.product.heightMm, designMasterPpi),
+          widthPx:
+            payload.template.widthPx ??
+            mmToPixels(payload.product.widthMm, designMasterPpi),
+          heightPx:
+            payload.template.heightPx ??
+            mmToPixels(payload.product.heightMm, designMasterPpi),
           designMasterPpi,
           defaultFontFamily: payload.template.defaultFont,
           defaultFill: payload.template.defaultFill,
@@ -1084,11 +1140,6 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
-
-    const [master, preview] = await Promise.all([
-      downloadAsset(payload.assets.masterUrl, "image/jpeg"),
-      downloadAsset(payload.assets.previewUrl, "image/webp"),
-    ]);
 
     const templateObject = getTemplateObject(payload, keys);
     const productObject = getProductObject(payload, keys, storageName);

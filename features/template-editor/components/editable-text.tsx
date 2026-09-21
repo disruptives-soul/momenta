@@ -37,6 +37,92 @@ type GuideBox = {
   height: number;
 };
 
+let textMeasurementContext: CanvasRenderingContext2D | null = null;
+
+function getTextMeasurementContext() {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!textMeasurementContext) {
+    textMeasurementContext = document.createElement("canvas").getContext("2d");
+  }
+
+  return textMeasurementContext;
+}
+
+function measureTrackedTextWidth(
+  value: string,
+  fontFamily: string,
+  fontWeight: number | undefined,
+  fontSize: number,
+  letterSpacing: number,
+) {
+  const context = getTextMeasurementContext();
+  const characters = Array.from(value);
+
+  if (!context) {
+    return (
+      characters.length * fontSize * 0.54 +
+      Math.max(0, characters.length - 1) * letterSpacing
+    );
+  }
+
+  context.font = `${(fontWeight ?? 400) >= 700 ? 700 : 400} ${fontSize}px ${fontFamily}`;
+
+  return (
+    context.measureText(value).width +
+    Math.max(0, characters.length - 1) * letterSpacing
+  );
+}
+
+function getFittedPointFontSize(element: TextElement, maxWidth: number) {
+  if (
+    element.kind === "pathText" ||
+    element.sourceTextKind !== "point" ||
+    element.maxLines > 1
+  ) {
+    return element.fontSize;
+  }
+
+  const targetWidth = maxWidth * 0.96;
+  const measuredWidth = measureTrackedTextWidth(
+    element.text,
+    element.fontFamily,
+    element.fontWeight,
+    element.fontSize,
+    element.letterSpacing ?? 0,
+  );
+
+  if (measuredWidth <= targetWidth) {
+    return element.fontSize;
+  }
+
+  const minFontSize = Math.max(8, element.minFontSize ?? element.fontSize * 0.45);
+  let low = minFontSize;
+  let high = element.fontSize;
+
+  for (let index = 0; index < 10; index += 1) {
+    const next = (low + high) / 2;
+    const ratio = next / element.fontSize;
+    const nextWidth = measureTrackedTextWidth(
+      element.text,
+      element.fontFamily,
+      element.fontWeight,
+      next,
+      (element.letterSpacing ?? 0) * ratio,
+    );
+
+    if (nextWidth <= targetWidth) {
+      low = next;
+    } else {
+      high = next;
+    }
+  }
+
+  return low;
+}
+
 type EditableTextProps = {
   element: TextElement;
   scale: TemplateScale;
@@ -73,11 +159,15 @@ export function EditableText({
   const textRef = useRef<Konva.Text | null>(null);
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const pendingLayoutRef = useRef<NormalizedTextLayout | null>(null);
-  const scaledFontSize = getScaledFontSize(element.fontSize, scale);
   const visualBox = getTextVisualBox(element);
+  const renderFontSize = getFittedPointFontSize(element, visualBox.width);
+  const renderFontScale =
+    element.fontSize > 0 ? renderFontSize / element.fontSize : 1;
+  const scaledFontSize = getScaledFontSize(renderFontSize, scale);
   const scaledWidth = visualBox.width * scale.scaleX;
   const scaledHeight = visualBox.height * scale.scaleY;
-  const scaledLetterSpacing = (element.letterSpacing ?? 0) * scale.scaleX;
+  const scaledLetterSpacing =
+    (element.letterSpacing ?? 0) * renderFontScale * scale.scaleX;
   const x = visualBox.x * scale.scaleX;
   const y = visualBox.y * scale.scaleY;
   const lineHeight = element.lineHeight ?? 1.15;
@@ -394,7 +484,11 @@ export function EditableText({
         fontFamily={element.fontFamily}
         fontSize={scaledFontSize}
         fontStyle={(element.fontWeight ?? 500) >= 700 ? "bold" : "normal"}
-        height={element.sourceTextKind === "area" ? scaledHeight : undefined}
+        height={
+          element.sourceTextKind === "area" || element.source === "illustrator"
+            ? scaledHeight
+            : undefined
+        }
         letterSpacing={scaledLetterSpacing}
         lineHeight={lineHeight}
         listening={!disabled}

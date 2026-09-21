@@ -32,6 +32,8 @@ type HeadlessTemplateObject = {
   productSlug: string;
   widthMm: number;
   heightMm: number;
+  widthPx?: number;
+  heightPx?: number;
   printProfile: InvitationTemplate["printProfile"];
   safeArea?: InvitationTemplate["safeArea"];
   allowedColors?: string[];
@@ -274,8 +276,14 @@ function normalizeField(
 }
 
 function toInvitationTemplate(source: HeadlessTemplateObject): InvitationTemplate {
-  const widthPx = mmToPixels(source.widthMm, source.printProfile.designMasterPpi);
-  const heightPx = mmToPixels(source.heightMm, source.printProfile.designMasterPpi);
+  const widthPx =
+    typeof source.widthPx === "number" && Number.isFinite(source.widthPx)
+      ? source.widthPx
+      : mmToPixels(source.widthMm, source.printProfile.designMasterPpi);
+  const heightPx =
+    typeof source.heightPx === "number" && Number.isFinite(source.heightPx)
+      ? source.heightPx
+      : mmToPixels(source.heightMm, source.printProfile.designMasterPpi);
   const fields = Object.fromEntries(
     source.textElements.map((element, index) => [
       element.id,

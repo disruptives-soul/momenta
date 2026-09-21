@@ -187,6 +187,7 @@ function hasLoadedFontFace(asset: CanvasFontAsset) {
 
 function useCanvasFonts(scene: TextElement[]) {
   const [loadVersion, setLoadVersion] = useState(0);
+  const [areFontsReady, setAreFontsReady] = useState(true);
   const fontAssets = useMemo(() => getCanvasFontAssets(scene), [scene]);
   const fontSignature = useMemo(
     () =>
@@ -204,6 +205,12 @@ function useCanvasFonts(scene: TextElement[]) {
     let isDisposed = false;
 
     async function loadFonts() {
+      if (fontAssets.length === 0) {
+        setAreFontsReady(true);
+        return;
+      }
+
+      setAreFontsReady(false);
       await Promise.all(
         fontAssets.map(async (asset) => {
           if (hasLoadedFontFace(asset)) {
@@ -226,6 +233,7 @@ function useCanvasFonts(scene: TextElement[]) {
       await document.fonts.ready;
 
       if (!isDisposed) {
+        setAreFontsReady(true);
         setLoadVersion((current) => current + 1);
       }
     }
@@ -239,7 +247,10 @@ function useCanvasFonts(scene: TextElement[]) {
     };
   }, [fontAssets, fontSignature]);
 
-  return loadVersion;
+  return {
+    areFontsReady,
+    loadVersion,
+  };
 }
 
 export function PersonalizationCanvas({
@@ -259,7 +270,7 @@ export function PersonalizationCanvas({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const scale = useTemplateScale(containerRef, template, zoom);
-  const fontLoadVersion = useCanvasFonts(scene);
+  const { areFontsReady, loadVersion: fontLoadVersion } = useCanvasFonts(scene);
   const {
     hasError: hasImageError,
     image,
@@ -655,40 +666,42 @@ export function PersonalizationCanvas({
                   />
                 ))
               : null}
-            {scene.map((element) => (
-              <EditableText
-                canvasSize={{ width: scale.width, height: scale.height }}
-                disabled={previewMode}
-                element={element}
-                guideBoxes={scene
-                  .filter(
-                    (item) =>
-                      item.id !== element.id &&
-                      !selectedElementIds.includes(item.id),
-                  )
-                  .map((item) => {
-                    const box = getTextVisualBox(item);
+            {areFontsReady
+              ? scene.map((element) => (
+                  <EditableText
+                    canvasSize={{ width: scale.width, height: scale.height }}
+                    disabled={previewMode}
+                    element={element}
+                    guideBoxes={scene
+                      .filter(
+                        (item) =>
+                          item.id !== element.id &&
+                          !selectedElementIds.includes(item.id),
+                      )
+                      .map((item) => {
+                        const box = getTextVisualBox(item);
 
-                    return {
-                      x: box.x * scale.scaleX,
-                      y: box.y * scale.scaleY,
-                      width: box.width * scale.scaleX,
-                      height: box.height * scale.scaleY,
-                    };
-                  })}
-                isHovered={element.id === visibleHoverElementId}
-                isEditing={element.id === editingElementId}
-                isActive={selectedElementIds.includes(element.id)}
-                key={element.id}
-                onChange={handleTextChange}
-                onGuidesChange={setAlignmentGuides}
-                onHoverChange={setCanvasHoveredElementId}
-                onSelect={handleTextSelect}
-                onStartEditing={startEditing}
-                safeArea={safeArea}
-                scale={scale}
-              />
-            ))}
+                        return {
+                          x: box.x * scale.scaleX,
+                          y: box.y * scale.scaleY,
+                          width: box.width * scale.scaleX,
+                          height: box.height * scale.scaleY,
+                        };
+                      })}
+                    isHovered={element.id === visibleHoverElementId}
+                    isEditing={element.id === editingElementId}
+                    isActive={selectedElementIds.includes(element.id)}
+                    key={element.id}
+                    onChange={handleTextChange}
+                    onGuidesChange={setAlignmentGuides}
+                    onHoverChange={setCanvasHoveredElementId}
+                    onSelect={handleTextSelect}
+                    onStartEditing={startEditing}
+                    safeArea={safeArea}
+                    scale={scale}
+                  />
+                ))
+              : null}
             {selectionRect ? (
               <Rect
                 dash={[6, 4]}

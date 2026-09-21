@@ -130,6 +130,15 @@ export function getTextElementBoxHeight(element: TextElement) {
   const lineHeight = element.lineHeight ?? 1.15;
 
   if (
+    element.source === "illustrator" &&
+    typeof element.height === "number" &&
+    Number.isFinite(element.height) &&
+    element.height > 0
+  ) {
+    return element.height;
+  }
+
+  if (
     element.sourceTextKind === "area" &&
     typeof element.height === "number" &&
     Number.isFinite(element.height) &&

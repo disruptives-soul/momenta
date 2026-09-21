@@ -159,6 +159,7 @@ export function PersonalizationEditor({
   const [zoomIndex, setZoomIndex] = useState(3);
   const [clipboardElements, setClipboardElements] = useState<TextElement[]>([]);
   const [isPositionPanelOpen, setIsPositionPanelOpen] = useState(false);
+  const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const zoom = zoomLevels[zoomIndex];
   const selectedElements = scene.filter((element) =>
     selectedElementIds.includes(element.id),
@@ -193,6 +194,9 @@ export function PersonalizationEditor({
       ]
     : constraints.allowedFonts;
   const selectedFontValue = selectedElement?.fontFamily ?? "";
+  const selectedFontLabel =
+    editorFonts.find((font) => font.value === selectedFontValue)?.label ??
+    getFontLabel(selectedFontValue);
 
   function updateSelectedElements(patch: Partial<TextElement>) {
     if (activeSelectedElementIds.length === 0) return;
@@ -216,6 +220,7 @@ export function PersonalizationEditor({
       pdfFont: font.pdfFont,
       fontAsset: font.fontAsset,
     });
+    setIsFontMenuOpen(false);
   }
 
   function updateSelectedFontSizePt(nextFontSizePt: number) {
@@ -490,22 +495,71 @@ export function PersonalizationEditor({
                   ? `${selectedElements.length} textos`
                   : `Editando: ${selectedElement.label}`}
               </div>
-              <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-2 py-1 shadow-[0_12px_28px_rgb(37_31_26_/_0.08)]">
-                <label className="flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold">
-                  <select
-                    aria-label="Tipografia"
-                    className="h-full max-w-40 bg-transparent font-semibold outline-none"
-                    onChange={(event) => updateSelectedFont(event.target.value)}
-                    value={selectedFontValue}
+              <div className="relative flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-2 py-1 shadow-[0_12px_28px_rgb(37_31_26_/_0.08)]">
+                <div
+                  className="relative"
+                  onBlur={(event) => {
+                    if (
+                      !event.currentTarget.contains(
+                        event.relatedTarget as Node | null,
+                      )
+                    ) {
+                      setIsFontMenuOpen(false);
+                    }
+                  }}
+                >
+                  <button
+                    aria-expanded={isFontMenuOpen}
+                    aria-haspopup="menu"
+                    className={cn(
+                      "flex h-9 min-w-36 items-center justify-between gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:border-primary/30 hover:bg-muted/60",
+                      isFontMenuOpen && "border-primary/40 bg-primary/5",
+                    )}
+                    onClick={() => {
+                      setIsFontMenuOpen((current) => !current);
+                      setIsPositionPanelOpen(false);
+                    }}
+                    type="button"
                   >
-                    {editorFonts.map((font) => (
-                      <option key={font.value} value={font.value}>
-                        {font.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                </label>
+                    <span className="max-w-32 truncate">{selectedFontLabel}</span>
+                    <ChevronDown
+                      className={cn(
+                        "size-4 shrink-0 text-muted-foreground transition",
+                        isFontMenuOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+
+                  {isFontMenuOpen ? (
+                    <div
+                      className="absolute left-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-md border border-border bg-surface p-1 shadow-[0_18px_40px_rgb(37_31_26_/_0.14)]"
+                      role="menu"
+                    >
+                      {editorFonts.map((font) => {
+                        const isSelected = font.value === selectedFontValue;
+
+                        return (
+                          <button
+                            aria-checked={isSelected}
+                            className={cn(
+                              "flex h-9 w-full items-center justify-between rounded-sm px-3 text-left text-sm font-semibold text-foreground transition hover:bg-primary/5",
+                              isSelected && "bg-primary text-primary-foreground hover:bg-primary",
+                            )}
+                            key={font.value}
+                            onClick={() => updateSelectedFont(font.value)}
+                            role="menuitemradio"
+                            type="button"
+                          >
+                            <span className="truncate">{font.label}</span>
+                            {isSelected ? (
+                              <span className="size-1.5 rounded-full bg-current" />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="flex h-9 items-center rounded-md border border-border bg-background">
                   <button
@@ -518,7 +572,7 @@ export function PersonalizationEditor({
                   </button>
                   <Input
                     aria-label="Tamano de texto en puntos"
-                    className="h-9 w-16 border-0 text-center"
+                    className="h-9 w-14 border-0 text-center"
                     inputMode="numeric"
                     onChange={(event) => {
                       const nextValue = Number(
@@ -532,7 +586,6 @@ export function PersonalizationEditor({
                     type="text"
                     value={selectedFontSizePt}
                   />
-                  <span className="pr-1 text-xs text-muted-foreground">pt</span>
                   <button
                     aria-label="Aumentar tamano"
                     className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -602,6 +655,7 @@ export function PersonalizationEditor({
                       isPositionPanelOpen && "bg-primary text-primary-foreground hover:bg-primary/90",
                     )}
                     onClick={() => setIsPositionPanelOpen((current) => !current)}
+                    onMouseDown={() => setIsFontMenuOpen(false)}
                     type="button"
                   >
                     Posicion
@@ -707,7 +761,7 @@ export function PersonalizationEditor({
               Agregar texto
             </Button>
             <p className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Haz click para ubicar en el canvas
+              Capas de texto
             </p>
             {scene.map((element) => {
               const selected = selectedElementIds.includes(element.id);
@@ -715,10 +769,10 @@ export function PersonalizationEditor({
               return (
                 <button
                   className={cn(
-                    "group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-transparent p-3 text-left text-sm transition",
+                    "group relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-md border p-3 text-left text-sm transition",
                     selected
-                      ? "border-primary/40 bg-primary/5"
-                      : "hover:bg-muted",
+                      ? "border-primary/35 bg-primary/5 shadow-[0_10px_24px_rgb(168_77_49_/_0.10)]"
+                      : "border-transparent hover:border-border hover:bg-muted/70",
                   )}
                   key={element.id}
                   onBlur={() => setHoveredElementId(null)}
@@ -735,26 +789,28 @@ export function PersonalizationEditor({
                   title="Click para seleccionar este texto en el canvas"
                   type="button"
                 >
-                  <span className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+                  <span
+                    className={cn(
+                      "grid size-9 place-items-center rounded-full bg-muted text-muted-foreground transition",
+                      selected && "bg-primary text-primary-foreground",
+                    )}
+                  >
                     <Type className="size-4" />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                       {element.label}
                     </span>
-                    <span className="block truncate font-semibold">
+                    <span className="block truncate font-semibold text-foreground">
                       {getShortText(element.text)}
                     </span>
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {Math.round(fontPxToPt(element.fontSize, template))}pt
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-primary/20 bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                  >
-                    Ver en canvas
-                  </span>
+                  {selected ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute right-3 top-3 size-2 rounded-full bg-primary"
+                    />
+                  ) : null}
                 </button>
               );
             })}
